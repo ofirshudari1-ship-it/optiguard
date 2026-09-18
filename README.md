@@ -1,136 +1,40 @@
 # OptiGuard
 
-**All-In-One PC Care** — a Windows maintenance app: full program uninstall,
-system cleanup, security & privacy center, and a smart PC health score.
-Current version: **4.10**
+**All-in-one PC cleanup, uninstaller, and diagnostics for Windows — without the fear-mongering.**
 
-תוכנת תחזוקת מחשב ל-Windows "הכל באחד": הסרת תוכנות מלאה, ניקוי מערכת, מרכז
-אבטחה ופרטיות, וציון בריאות מחשב חכם. גרסה נוכחית: **4.10**
+## What it does
 
----
+Most "PC cleaner" tools scare you into upgrading by claiming to find thousands of fake errors, and generic registry cleaners can break working software. OptiGuard takes the opposite approach: it uninstalls programs completely (removing leftover files and registry entries a normal uninstall leaves behind), cleans junk files, finds duplicate files, analyzes disk space, and flags only registry entries it can actually prove are broken. It reads real status from Windows itself — Defender, Firewall, Windows Update, Device Manager — instead of faking its own results, and rolls it all up into a single PC health score with a direct "fix this" link for every issue found. Every risky action is protected by a 7-day recoverable quarantine and an automatic system restore point, so nothing is ever gone for good by accident.
 
-## What it does / מה התוכנה עושה
+## Download & install
 
-OptiGuard uninstalls programs completely (including leftover files and
-registry entries), cleans junk files, finds duplicate files, analyzes disk
-space, checks Windows Defender / Firewall / Windows Update status, cleans
-evidence-based "ghost" registry entries, and scores your PC's health out of
-100 — with a direct "fix this" link for every issue found. Every risky action
-goes through a 7-day recoverable quarantine and an automatic restore point
-first. No fear-mongering fake error counts, no upsells, no telemetry.
+**[Download the latest version](https://github.com/ofirshudari1-ship-it/optiguard/releases/latest)**
 
-OptiGuard מסיר תוכנות במלואן (כולל שאריות קבצים ורישום), מנקה קבצי זבל, מוצא
-קבצים כפולים, מנתח שטח דיסק, בודק סטטוס Windows Defender/חומת אש/Windows
-Update, מנקה רשומות רישום "רפאים" מבוססות-ראיות, ונותן ציון בריאות מחשב מ-100
-עם כפתור "תקן זאת" לכל בעיה. כל פעולה מסוכנת עוברת דרך הסגר בר-שחזור של 7 ימים
-ונקודת שחזור אוטומטית קודם. בלי הפחדות, בלי הצעות שדרוג, בלי איסוף נתונים.
+1. Download `OptiGuard-Setup-<version>.exe` from the link above.
+2. Run the installer and choose your language (English or Hebrew).
+3. Follow the setup wizard — the default options work for almost everyone.
+4. On first launch, pick your language and theme once (you can change either later in Settings).
+5. Done — start from the Dashboard for your PC health score and guided cleanup wizards.
 
-## Who it's for / למי זה מיועד
+**System requirements:** Windows 10 (20H2 or later) or Windows 11, with .NET Framework 4.8 (usually already installed; Windows Update installs it automatically if missing). OptiGuard requires **administrator rights** to run, since it needs to read and clean system-level registry entries and access protected folders — expect a UAC prompt on every launch.
 
-Windows users who want one trustworthy tool for PC maintenance instead of
-juggling several apps — and want to actually understand what each cleanup
-step does, not just click "Fix All" and hope for the best.
+## Key features
 
-משתמשי Windows שרוצים כלי אמין אחד לתחזוקת המחשב במקום כמה תוכנות שונות -
-ורוצים להבין מה כל שלב ניקוי עושה בפועל, לא רק ללחוץ "תקן הכל" ולקוות לטוב.
+- **Full program uninstall** — normal, deep, or forced removal, including leftover `%APPDATA%` folders and registry entries a standard Windows uninstall leaves behind
+- **"Safe to remove" confidence score** on the Programs list, based on real Windows Prefetch usage data — never guesses, labels unknown programs "unknown" rather than falsely calling them safe
+- **Junk cleaner** with optional scheduled automatic cleanup (off by default, opt-in), all routed through the recoverable quarantine
+- **Disk space analyzer** and **duplicate file finder** (real content comparison, not just name/size matching)
+- **Browser extension manager** with a permission risk rating for Chrome, Edge, and Firefox extensions
+- **Security Center** and **Privacy panel** reading real Windows Defender, Firewall, and Windows Update status, plus real Windows privacy toggles
+- **Evidence-based registry cleaner** that only flags entries pointing to files that verifiably no longer exist, with an automatic backup before anything is removed
+- **Phishing link checker**, disk health (S.M.A.R.T.) monitoring, and one-click quick fixes
+- **PC health score** (0–100) built from real system data, with an activity timeline and direct fixes for every flagged issue
+- Fully bilingual (English/Hebrew with full RTL) and includes a dedicated high-contrast accessibility theme
 
-## System requirements / דרישות מערכת
+## Automatic updates
 
-- Windows 10 (20H2+) or Windows 11
-- .NET Framework 4.8 (usually already installed; Windows Update installs it
-  automatically if missing)
-- Administrator rights (needed for registry and Program Files access — a UAC
-  prompt appears on every launch)
+OptiGuard checks for new versions automatically and shows a simple, dismissible banner when one is available — no forced installs, no interrupting your work. You can always grab the newest release yourself from the [Releases page](https://github.com/ofirshudari1-ship-it/optiguard/releases).
 
-- Windows 10 (‏20H2 ומעלה) או Windows 11
-- ‏.NET Framework 4.8 (בדרך כלל כבר מותקן; Windows Update מתקין אוטומטית אם חסר)
-- הרשאות מנהל (נדרש לגישה לרישום ול-Program Files - חלון UAC יופיע בכל הפעלה)
+## Privacy
 
-## Installing / התקנה
-
-1. Run `OptiGuard-Setup-4.10.0.exe`.
-2. Choose your language (English/Hebrew) on the first screen.
-3. Follow the wizard — the default options work for almost everyone.
-4. On first launch, pick your language and theme once; you can change either
-   later from Settings.
-
-1. הרץ את `OptiGuard-Setup-4.10.0.exe`.
-2. בחר שפה (אנגלית/עברית) במסך הראשון.
-3. עקוב אחר האשף - האפשרויות ברירת המחדל מתאימות לרוב המשתמשים.
-4. בהפעלה הראשונה, בחר שפה וערכת נושא פעם אחת; ניתן לשנות מאוחר יותר בהגדרות.
-
-If OptiGuard is already open when you run the installer, it will ask you to
-close it first — this prevents a failed update.
-
-אם OptiGuard כבר פתוחה כשמריצים את המתקין, הוא יבקש לסגור אותה קודם - זה מונע עדכון שנכשל.
-
-## Using it / שימוש
-
-Pick a page from the left-hand navigation. Start with **Dashboard** for an
-overall health score and one-click guided wizards (general cleanup, security,
-privacy, registry). Every list (Programs, Junk Cleaner, Registry Cleaner...)
-lets you review exactly what's selected before anything is removed.
-
-בחר עמוד מהניווט הצידי. התחל מ-**Dashboard** לציון בריאות כללי ואשפים מונחים
-בלחיצה אחת (ניקוי כללי, אבטחה, פרטיות, רישום). כל רשימה מאפשרת לבדוק בדיוק
-מה נבחר לפני שמשהו נמחק.
-
-## Troubleshooting / פתרון תקלות
-
-**"OptiGuard is currently running" during install/update** — close the app
-first (check the system tray / taskbar), then retry.
-**"OptiGuard רצה כרגע" בזמן התקנה/עדכון** — סגור את התוכנה קודם, ואז נסה שוב.
-
-**Something crashed** — check the log file at
-`%APPDATA%\UninstallerPro\Log_<date>_<time>.txt` (also linked directly in the
-error dialog). It records what happened right before the error, with no
-sensitive data.
-**קרתה קריסה** — בדוק את קובץ הלוג ב-`%APPDATA%\UninstallerPro\Log_<תאריך>_<שעה>.txt`
-(גם מקושר ישירות בחלון השגיאה). הוא מתעד מה קרה ממש לפני השגיאה, בלי מידע רגיש.
-
-**Accidentally deleted something you needed** — check **Junk Cleaner →
-Quarantine** (or the equivalent section) within 7 days; deleted files are
-recoverable there before they're purged for good.
-**מחקת בטעות משהו שהיית צריך** — בדוק בהסגר (Quarantine) בתוך 7 ימים; קבצים
-שנמחקו ניתנים לשחזור שם לפני שהם נמחקים סופית.
-
----
-
-## For developers / למפתחים
-
-```
-OptiGuard/
-├── OptiGuard-Setup-4.10.0.exe   ← the final installer (the only file end users need)
-├── Setup.cs / Setup.csproj  ← installer source
-├── version.json          ← single source of truth for the version number
-├── build.ps1             ← one command: builds the app, then the installer
-├── CHANGELOG.md, SPEC.md, README.md, EULA.md
-├── site/                 ← marketing landing page
-├── assets/               ← brand assets (icons, BRAND.md)
-├── src/                  ← main app source (C# / WPF, .NET Framework 4.8)
-└── build/                ← dev tools (GenIcon), historical reports, Version.props
-```
-
-Rebuild everything with:
-
-```powershell
-.\build.ps1
-```
-
-This reads `version.json`, builds `src/OptiGuard.csproj`, then `Setup.csproj`
-(which embeds the just-built exe), and copies the result to
-`OptiGuard-Setup-4.10.0.exe` at the project root. To bump the version, edit
-`version.json` only — it's injected everywhere else automatically.
-
-**Technical note:** the app's internal C# namespace is still `UninstallerPro`
-(historical name) — an invisible implementation detail that affects nothing
-user-facing (folder name, build output, installer, what actually gets
-installed are all `OptiGuard`). Renaming it across 30+ files is unnecessary
-mechanical risk for no visible benefit.
-
-## User data (not in this folder) / נתוני משתמש (לא בתיקייה הזו)
-
-The app stores its data (settings, quarantine, logs, stats) in
-`%APPDATA%\UninstallerPro` on the end user's machine, never inside the
-project folder. This includes: `settings.json`, `stats.json`, `Quarantine/`
-(with `manifest.json`), `RegistryBackups/`, and `Log_*.txt` files.
+OptiGuard is a local-first tool: it runs entirely on your own PC and never sends your files, registry contents, or personal data to any remote server. The only network activity is an optional, explicit check for new versions, which fetches nothing more than version information.
