@@ -1,0 +1,48 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Reconstructed project file — none existed before (the app was being compiled directly
+    with csc.exe, with no way to rebuild it from a clean checkout). Framework target and
+    references below were derived from the actual `using` statements found across src/*.cs:
+    System.Web.Script.Serialization (JavaScriptSerializer, used in 9 files) only exists in
+    classic .NET Framework, not in modern .NET — so this must stay net48, not net8.0.
+  -->
+
+  <Import Project="..\build\Version.props" />
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net48</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <UseWindowsForms>true</UseWindowsForms>
+    <LangVersion>latest</LangVersion>
+    <AssemblyName>OptiGuard</AssemblyName>
+    <RootNamespace>UninstallerPro</RootNamespace>
+    <ApplicationIcon>..\AppIcon.ico</ApplicationIcon>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <Product>OptiGuard</Product>
+    <Company>OptiGuard</Company>
+    <AssemblyTitle>OptiGuard</AssemblyTitle>
+    <Description>All-in-one PC care: uninstall programs, remove leftovers, clean junk, check disk health, quick-fix common issues.</Description>
+    <GenerateAssemblyInfo>true</GenerateAssemblyInfo>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Reference Include="System.Management" />
+    <Reference Include="System.Web.Extensions" />
+  </ItemGroup>
+
+  <!--
+    UI text lives in ../locales/*.json (see src/I18n.cs), not embedded in
+    code. Copied next to the built exe so I18n.cs can find it at runtime
+    with AppDomain.CurrentDomain.BaseDirectory + "locales". Setup.cs embeds
+    and writes these same files into the install directory separately.
+  -->
+  <ItemGroup>
+    <Content Include="..\locales\*.json">
+      <Link>locales\%(Filename)%(Extension)</Link>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
+
+</Project>

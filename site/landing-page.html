@@ -1,0 +1,619 @@
+<title>OptiGuard</title>
+<meta name="description" content="The PC cleaner that shows its work — evidence-based scans, a 7-day undo on everything, and no invented error counts.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wght@500;600;700;800&family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;1,6..72,400&family=IBM+Plex+Mono:wght@400;500;600&family=Rubik:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --paper:#F6F5F1; --surface:#FFFFFF; --ink:#14201C; --ink-soft:#4B5A54;
+    --accent:#0E9F6E; --accent-deep:#0B7A55; --accent-tint:#E4F3EC;
+    --signal:#C2703D; --signal-tint:#F7E9DE; --line:#DCD9CF; --line-strong:#C6C2B4;
+    --panel-bad-border:#E4C7AC; --panel-good-border:#B9DFCB; --panel-bad-label:#8A4A24;
+    --shadow: 0 1px 2px rgba(20,32,28,.04), 0 8px 24px rgba(20,32,28,.06);
+    --radius: 3px;
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --paper:#0E1512; --surface:#141C18; --ink:#E8ECE9; --ink-soft:#9FB0A8;
+      --accent:#34D399; --accent-deep:#5EEAB4; --accent-tint:#16332A;
+      --signal:#E08A52; --signal-tint:#2E2118; --line:#263029; --line-strong:#33403A;
+      --panel-bad-border:#4A3624; --panel-good-border:#1F4A38; --panel-bad-label:#E8A876;
+      --shadow: 0 1px 2px rgba(0,0,0,.3), 0 8px 28px rgba(0,0,0,.35);
+    }
+  }
+  :root[data-theme="dark"]{
+    --paper:#0E1512; --surface:#141C18; --ink:#E8ECE9; --ink-soft:#9FB0A8;
+    --accent:#34D399; --accent-deep:#5EEAB4; --accent-tint:#16332A;
+    --signal:#E08A52; --signal-tint:#2E2118; --line:#263029; --line-strong:#33403A;
+    --panel-bad-border:#4A3624; --panel-good-border:#1F4A38; --panel-bad-label:#E8A876;
+    --shadow: 0 1px 2px rgba(0,0,0,.3), 0 8px 28px rgba(0,0,0,.35);
+  }
+
+  *{box-sizing:border-box;}
+  body{
+    margin:0; background:var(--paper); color:var(--ink);
+    font-family:"Newsreader", Georgia, "Times New Roman", serif;
+    font-size:17px; line-height:1.6; -webkit-font-smoothing:antialiased;
+  }
+  h1,h2,h3,.disp{ font-family:"Archivo", "Arial Narrow", sans-serif; text-wrap:balance; letter-spacing:-0.01em; }
+  .mono{ font-family:"IBM Plex Mono", ui-monospace, Menlo, monospace; font-variant-numeric:tabular-nums; }
+  a{ color:var(--accent-deep); }
+  ::selection{ background:var(--accent); color:var(--surface); }
+
+  .wrap{ max-width:1080px; margin:0 auto; padding:0 32px; }
+  .rule{ border:none; border-top:1px solid var(--line); margin:0; }
+
+  /* ---------- language toggle / RTL ---------- */
+  html[data-lang="en"] .lang-he{ display:none; }
+  html[data-lang="he"] .lang-en{ display:none; }
+  html[data-lang="he"] body{ font-family:"Rubik","Newsreader",Georgia,serif; }
+  html[data-lang="he"] h1,html[data-lang="he"] h2,html[data-lang="he"] h3,html[data-lang="he"] .disp,
+  html[data-lang="he"] .eyebrow,html[data-lang="he"] .mono,html[data-lang="he"] .cta-btn,
+  html[data-lang="he"] .btn-primary,html[data-lang="he"] .btn-ghost,html[data-lang="he"] .navlinks,
+  html[data-lang="he"] .case-tag,html[data-lang="he"] .metric .cap,html[data-lang="he"] .score-cap,
+  html[data-lang="he"] .fix,html[data-lang="he"] footer{ font-family:"Rubik",sans-serif; }
+  .lang-toggle{ font-family:"IBM Plex Mono"; font-size:12.5px; letter-spacing:.04em; color:var(--ink-soft); background:none; border:1px solid var(--line-strong); border-radius:var(--radius); padding:6px 12px; cursor:pointer; }
+  .lang-toggle:hover{ color:var(--accent-deep); border-color:var(--accent-deep); }
+
+  /* ---------- top bar ---------- */
+  .topbar{ display:flex; align-items:center; justify-content:space-between; padding:22px 0; gap:16px; }
+  .brand{ display:flex; align-items:center; gap:10px; font-family:"Archivo"; font-weight:800; font-size:19px; letter-spacing:-0.01em; }
+  .brand .mark{ width:22px; height:22px; flex:none; }
+  .navlinks{ display:flex; gap:28px; font-family:"IBM Plex Mono"; font-size:12.5px; letter-spacing:.04em; text-transform:uppercase; }
+  .navlinks a{ color:var(--ink-soft); text-decoration:none; }
+  .navlinks a:hover{ color:var(--accent-deep); }
+  .topbar-actions{ display:flex; align-items:center; gap:12px; }
+  .cta-btn{ background:var(--ink); color:var(--paper); border:none; font-family:"IBM Plex Mono"; font-size:12.5px; letter-spacing:.04em; text-transform:uppercase; padding:11px 18px; border-radius:var(--radius); cursor:pointer; text-decoration:none; display:inline-block; }
+  .cta-btn:hover{ background:var(--accent-deep); color:#fff; }
+  .cta-btn:focus-visible, a:focus-visible, button:focus-visible{ outline:2px solid var(--accent); outline-offset:2px; }
+
+  /* ---------- hero: a diagnostic readout, not a graphic ---------- */
+  .hero{ padding:64px 0 56px; }
+  .hero-grid{ display:grid; grid-template-columns:1.05fr 0.95fr; gap:56px; align-items:start; }
+  .eyebrow{ font-family:"IBM Plex Mono"; font-size:12.5px; letter-spacing:.08em; text-transform:uppercase; color:var(--accent-deep); margin:0 0 16px; }
+  .hero h1{ font-size:50px; line-height:1.04; margin:0 0 22px; font-weight:800; }
+  .hero h1 em{ font-style:normal; color:var(--accent-deep); }
+  .hero p.lede{ font-size:19px; color:var(--ink-soft); max-width:46ch; margin:0 0 28px; }
+  .hero-actions{ display:flex; gap:14px; align-items:center; flex-wrap:wrap; }
+  .btn-primary{ background:var(--accent); color:#06231a; font-family:"IBM Plex Mono"; font-weight:600; font-size:13.5px; letter-spacing:.02em; padding:14px 22px; border-radius:var(--radius); text-decoration:none; display:inline-block; box-shadow:var(--shadow); }
+  .btn-primary:hover{ background:var(--accent-deep); color:#fff; }
+  .btn-ghost{ color:var(--ink); font-family:"IBM Plex Mono"; font-size:13px; text-decoration:none; border-bottom:1px solid var(--line-strong); padding-bottom:2px; }
+
+  /* readout card */
+  .readout{ background:var(--surface); border:1px solid var(--line); border-radius:6px; box-shadow:var(--shadow); overflow:hidden; }
+  .readout-head{ display:flex; justify-content:space-between; align-items:center; padding:14px 18px; border-bottom:1px solid var(--line); font-family:"IBM Plex Mono"; font-size:11.5px; letter-spacing:.06em; text-transform:uppercase; color:var(--ink-soft); }
+  .readout-head .dot{ width:7px; height:7px; border-radius:50%; background:var(--accent); display:inline-block; margin-inline-end:7px; }
+  .readout-body{ padding:22px 20px 8px; }
+  .score-row{ display:flex; align-items:baseline; gap:14px; margin-bottom:18px; }
+  .score-num{ font-family:"Archivo"; font-weight:800; font-size:52px; color:var(--accent-deep); line-height:1; }
+  .score-cap{ font-family:"IBM Plex Mono"; font-size:12px; color:var(--ink-soft); text-transform:uppercase; letter-spacing:.05em; }
+  .finding{ display:grid; grid-template-columns:22px 1fr auto; gap:10px; align-items:start; padding:12px 10px; margin:0 -10px; border-top:1px solid var(--line); font-size:14.5px; border-radius:5px; transition:background .15s ease; }
+  .finding:first-of-type{ border-top:none; }
+  .finding:hover{ background:var(--accent-tint); }
+  .finding .sev{ width:9px; height:9px; border-radius:50%; margin-top:5px; }
+  .sev-hi{ background:var(--signal); } .sev-mid{ background:#C9A227; } .sev-ok{ background:var(--accent); }
+  .finding .path{ font-family:"IBM Plex Mono"; font-size:12px; color:var(--ink-soft); display:block; margin-top:2px; word-break:break-all; }
+  .finding .fix{ font-family:"IBM Plex Mono"; font-size:11px; color:var(--accent-deep); text-transform:uppercase; letter-spacing:.04em; white-space:nowrap; align-self:center; }
+  .readout-foot{ padding:12px 20px 16px; font-family:"IBM Plex Mono"; font-size:11px; color:var(--ink-soft); }
+
+  /* ---------- section scaffolding: case-file margin rule ---------- */
+  section{ padding:64px 0; }
+  .case{ display:grid; grid-template-columns:200px 1fr; gap:48px; }
+  .case-tag{ font-family:"IBM Plex Mono"; font-size:12px; color:var(--ink-soft); letter-spacing:.04em; padding-top:6px; }
+  .case-tag b{ display:block; color:var(--ink); font-size:13px; margin-bottom:6px; }
+  .case h2{ font-size:30px; margin:0 0 16px; font-weight:700; max-width:20ch; }
+  .case .lead{ font-size:17.5px; color:var(--ink-soft); max-width:60ch; margin:0 0 24px; }
+
+  /* problem section: two contrasted readouts */
+  .contrast{ display:grid; grid-template-columns:1fr 1fr; gap:22px; margin-top:8px; }
+  .contrast .panel{ border-radius:6px; padding:20px 20px 18px; border:1px solid var(--line); }
+  .panel.bad{ background:var(--signal-tint); border-color:var(--panel-bad-border); }
+  .panel.good{ background:var(--accent-tint); border-color:var(--panel-good-border); }
+  .panel .label{ font-family:"IBM Plex Mono"; font-size:11px; text-transform:uppercase; letter-spacing:.06em; margin-bottom:10px; }
+  .panel.bad .label{ color:var(--panel-bad-label); } .panel.good .label{ color:var(--accent-deep); }
+  .panel .big{ font-family:"Archivo"; font-weight:800; font-size:15.5px; margin:0 0 8px; line-height:1.3; }
+  .panel p{ margin:0; font-size:14.5px; color:var(--ink-soft); }
+  .panel .cite{ display:block; margin-top:10px; font-family:"IBM Plex Mono"; font-size:11.5px; color:var(--ink-soft); }
+
+  /* mechanism / proof section */
+  .proof-log{ background:#0F1613; color:#CFE9DC; border-radius:6px; padding:20px 22px; font-family:"IBM Plex Mono"; font-size:12.5px; line-height:1.9; overflow-x:auto; box-shadow:var(--shadow); direction:ltr; text-align:left; }
+  .proof-log .ok{ color:#5EEAB4; } .proof-log .muted{ color:#7A9187; }
+  .metric-row{ display:grid; grid-template-columns:repeat(3,1fr); gap:1px; background:var(--line); border:1px solid var(--line); border-radius:6px; overflow:hidden; margin-top:22px; }
+  .metric{ background:var(--surface); padding:20px 18px; transition:background .15s ease; }
+  .metric:hover{ background:var(--accent-tint); }
+  .metric .num{ font-family:"Archivo"; font-weight:800; font-size:28px; color:var(--accent-deep); }
+  .metric .cap{ font-family:"IBM Plex Mono"; font-size:11.5px; color:var(--ink-soft); text-transform:uppercase; letter-spacing:.03em; margin-top:4px; }
+
+  /* feature dossier grid */
+  .groups{ display:grid; gap:0; margin-top:8px; }
+  .group{ display:grid; grid-template-columns:200px 1fr; gap:48px; padding:22px 0; border-top:1px solid var(--line); }
+  .group:first-child{ border-top:none; }
+  .group h3{ font-size:14px; margin:0; font-family:"IBM Plex Mono"; text-transform:uppercase; letter-spacing:.05em; color:var(--ink-soft); padding-top:3px; }
+  .flist{ display:grid; grid-template-columns:1fr 1fr; gap:10px 32px; }
+  .flist .f{ font-size:15px; padding-inline-start:14px; border-inline-start:2px solid var(--line-strong); }
+  .flist .f b{ display:block; font-family:"Archivo"; font-weight:600; font-size:15px; }
+  .flist .f span{ color:var(--ink-soft); font-size:13.5px; }
+
+  /* not-doing section */
+  .avoid-list{ display:grid; grid-template-columns:1fr 1fr; gap:16px; margin-top:8px; }
+  .avoid{ display:flex; gap:12px; padding:16px 18px; border:1px solid var(--line); border-radius:6px; background:var(--surface); }
+  .avoid .x{ font-family:"Archivo"; font-weight:800; color:var(--signal); font-size:16px; line-height:1.4; }
+  .avoid b{ display:block; font-family:"Archivo"; font-size:15px; }
+  .avoid span{ color:var(--ink-soft); font-size:13.5px; }
+
+  /* FAQ section */
+  .faq{ display:grid; gap:0; margin-top:8px; }
+  .faq-item{ padding:18px 0; border-top:1px solid var(--line); }
+  .faq-item:first-child{ border-top:none; }
+  .faq-item b{ display:block; font-family:"Archivo"; font-size:16px; font-weight:700; margin-bottom:6px; }
+  .faq-item p{ margin:0; color:var(--ink-soft); font-size:15px; max-width:65ch; }
+
+  /* footer / cta */
+  .closer{ text-align:center; padding:76px 0 48px; }
+  .closer h2{ font-size:34px; max-width:18ch; margin:0 auto 14px; }
+  .closer p{ color:var(--ink-soft); max-width:48ch; margin:0 auto 30px; font-size:16.5px; }
+  footer{ border-top:1px solid var(--line); padding:26px 0 40px; display:flex; justify-content:space-between; align-items:center; font-family:"IBM Plex Mono"; font-size:12px; color:var(--ink-soft); flex-wrap:wrap; gap:12px;}
+
+  @media (max-width:820px){
+    .hero-grid, .case, .group{ grid-template-columns:1fr; }
+    .case-tag{ padding-top:0; }
+    .contrast, .avoid-list, .flist{ grid-template-columns:1fr; }
+    .metric-row{ grid-template-columns:1fr; }
+    .hero h1{ font-size:36px; }
+    .wrap{ padding:0 20px; }
+    .topbar{ flex-wrap:wrap; }
+  }
+  @media (prefers-reduced-motion: no-preference){
+    .reveal{ animation: rise .5s ease-out backwards; }
+    @keyframes rise{ from{ opacity:0; transform:translateY(8px);} to{ opacity:1; transform:none; } }
+  }
+</style>
+
+<!-- ============================== ENGLISH ============================== -->
+<div class="lang-en">
+<div class="wrap">
+  <div class="topbar">
+    <div class="brand">
+      <svg class="mark" viewBox="0 0 24 24" fill="none"><path d="M12 2l8 3v6c0 5-3.4 8.4-8 11-4.6-2.6-8-6-8-11V5l8-3z" fill="var(--accent)"/><path d="M8.5 12.2l2.4 2.4 4.6-4.9" stroke="var(--paper)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      OptiGuard
+    </div>
+    <nav class="navlinks">
+      <a href="#problem">The problem</a>
+      <a href="#proof">How it works</a>
+      <a href="#features">Features</a>
+      <a href="#faq">FAQ</a>
+      <a href="#avoid">What we won't do</a>
+    </nav>
+    <div class="topbar-actions">
+      <button class="lang-toggle" onclick="setSiteLang('he')" aria-label="Switch to Hebrew">עברית</button>
+      <a class="cta-btn" href="#download">Get OptiGuard</a>
+    </div>
+  </div>
+</div>
+
+<header class="hero">
+  <div class="wrap hero-grid">
+    <div class="reveal">
+      <p class="eyebrow">All-in-one PC care · v4.10</p>
+      <h1>A PC cleaner that<br><em>shows its work.</em></h1>
+      <p class="lede">Most cleanup tools invent an error count to scare you into upgrading. OptiGuard scans for specific, provable problems, cites the exact evidence for each one, and keeps a 7-day undo on everything it touches.</p>
+      <div class="hero-actions">
+        <a class="btn-primary" href="../OptiGuard-Setup-4.10.0.exe">Download the installer →</a>
+        <a class="btn-ghost" href="#proof">See the evidence</a>
+      </div>
+    </div>
+    <div class="readout reveal" style="animation-delay:.1s">
+      <div class="readout-head"><span><span class="dot"></span>PC Health Score</span><span>Live scan</span></div>
+      <div class="readout-body">
+        <div class="score-row">
+          <span class="score-num">57</span>
+          <span class="score-cap">4 findings, each with a fix</span>
+        </div>
+        <div class="finding">
+          <span class="sev sev-hi"></span>
+          <div>Firewall profile disabled<span class="path">Domain, Private, Public — Get-NetFirewallProfile</span></div>
+          <span class="fix">Fix this</span>
+        </div>
+        <div class="finding">
+          <span class="sev sev-mid"></span>
+          <div>18 leftover registry entries<span class="path">HKLM\...\Uninstall\{Battlefield™ 6} → install path missing</span></div>
+          <span class="fix">Review</span>
+        </div>
+        <div class="finding">
+          <span class="sev sev-mid"></span>
+          <div>Browser extension, high-risk scope<span class="path">manifest permission: host_permissions "&lt;all_urls&gt;"</span></div>
+          <span class="fix">Review</span>
+        </div>
+        <div class="finding">
+          <span class="sev sev-ok"></span>
+          <div>Defender real-time protection<span class="path">AMServiceEnabled: true — no action needed</span></div>
+          <span class="fix">OK</span>
+        </div>
+      </div>
+      <div class="readout-foot mono">Illustrative findings from real diagnostic runs during development — not a scan of your machine.</div>
+    </div>
+  </div>
+</header>
+
+<hr class="rule">
+
+<section id="problem">
+  <div class="wrap case">
+    <div class="case-tag"><b>Case 01</b>The fear-tactic economy</div>
+    <div>
+      <h2>The market's default is to scare you first.</h2>
+      <p class="lead">Independent reviews keep finding the same pattern: cleaners that flag thousands of "critical errors" that aren't real, then gate the fix behind an upgrade. Some "driver updater" tools are outright flagged as malware. OptiGuard was built as the opposite of that playbook.</p>
+      <div class="contrast">
+        <div class="panel bad">
+          <div class="label">Typical cleaner</div>
+          <p class="big">"14,782 errors found — upgrade to fix"</p>
+          <p>A blind registry sweep flags anything that looks unused, with no evidence and no way to verify a single claim.</p>
+          <span class="cite">— reported pattern, PC-cleaner market review, 2026</span>
+        </div>
+        <div class="panel good">
+          <div class="label">OptiGuard</div>
+          <p class="big">"18 entries — each cites the missing path"</p>
+          <p>Only registry entries whose install folder, uninstaller, or icon is verifiably gone from disk are flagged. Nothing else.</p>
+          <span class="cite">registry-cleaner.scan() → RegistryCleanerData.cs</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<hr class="rule">
+
+<section id="proof">
+  <div class="wrap case">
+    <div class="case-tag"><b>Case 02</b>The safety net</div>
+    <div>
+      <h2>Every cleanup has a 7-day undo.</h2>
+      <p class="lead">Nothing is deleted outright. Files move to a local quarantine with a manifest recording where they came from — one click restores a whole batch. A Windows System Restore Point is created automatically before higher-risk actions.</p>
+      <div class="proof-log mono">
+<span class="muted">$</span> quarantine.log — bulk cleanup, 300 files<br>
+<span class="ok">✓</span> batch 20260910_a3f1 created<br>
+<span class="ok">✓</span> 300/300 files moved → quarantine/<br>
+<span class="ok">✓</span> manifest written in 213ms<span class="muted"> (one write per batch, not per file)</span><br>
+<span class="muted">$</span> undo last cleanup<br>
+<span class="ok">✓</span> 300/300 files restored to original path
+      </div>
+      <div class="metric-row">
+        <div class="metric"><div class="num">99×</div><div class="cap">faster batch cleanup after a 2026 perf fix</div></div>
+        <div class="metric"><div class="num">7 days</div><div class="cap">undo window before permanent deletion</div></div>
+        <div class="metric"><div class="num">4 hrs</div><div class="cap">restore-point cooldown, so cleanup never re-waits</div></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<hr class="rule">
+
+<section id="features">
+  <div class="wrap case">
+    <div class="case-tag"><b>Case 03</b>The toolkit</div>
+    <div>
+      <h2>Seventeen tools, one dossier.</h2>
+      <p class="lead">Organized the way you'd actually reach for them — not a flat list of forty icons.</p>
+      <div class="groups">
+        <div class="group">
+          <h3>Uninstall</h3>
+          <div class="flist">
+            <div class="f"><b>Programs</b><span>Normal, deep, or forced removal — with leftover detection and a local "safe to remove" confidence score</span></div>
+            <div class="f"><b>Windows apps &amp; games</b><span>UWP packages, Steam/Epic/GOG titles</span></div>
+            <div class="f"><b>Browser extensions</b><span>Risk-scored by real manifest permissions</span></div>
+          </div>
+        </div>
+        <div class="group">
+          <h3>Maintenance</h3>
+          <div class="flist">
+            <div class="f"><b>Disk space analyzer</b><span>Drill into folders, find the 50 largest files</span></div>
+            <div class="f"><b>Duplicate finder</b><span>Compares file content (SHA-1), not just filenames</span></div>
+            <div class="f"><b>Junk cleaner &amp; startup manager</b><span>Quarantined, not deleted outright — with an optional schedule for hands-off cleanup</span></div>
+          </div>
+        </div>
+        <div class="group">
+          <h3>Security &amp; privacy</h3>
+          <div class="flist">
+            <div class="f"><b>Security center</b><span>Reads real Defender, Firewall &amp; Windows Update status</span></div>
+            <div class="f"><b>Privacy dashboard</b><span>7 toggles — the same registry keys Windows Settings uses</span></div>
+            <div class="f"><b>Phishing checker</b><span>Heuristic scan for suspicious links and urgency language</span></div>
+          </div>
+        </div>
+        <div class="group">
+          <h3>Insight</h3>
+          <div class="flist">
+            <div class="f"><b>PC health score</b><span>One number from 7 real signals, each with a fix</span></div>
+            <div class="f"><b>Activity timeline</b><span>An honest history built from real quarantine &amp; backup records</span></div>
+            <div class="f"><b>Device &amp; driver health</b><span>Reads Device Manager — never downloads a driver</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<hr class="rule">
+
+<section id="avoid">
+  <div class="wrap case">
+    <div class="case-tag"><b>Case 04</b>Deliberately absent</div>
+    <div>
+      <h2>Some "features" we researched and refused to build.</h2>
+      <p class="lead">Every omission below was a decision, not an oversight.</p>
+      <div class="avoid-list">
+        <div class="avoid"><span class="x">✕</span><div><b>Driver auto-updater</b><span>A well-documented scareware category — some ship as outright malware. We read Device Manager's real status and point you to Windows Update instead.</span></div></div>
+        <div class="avoid"><span class="x">✕</span><div><b>"RAM optimizer"</b><span>Debunked pseudoscience on modern Windows. Force-trimming working sets makes things slower, not faster.</span></div></div>
+        <div class="avoid"><span class="x">✕</span><div><b>Blind registry sweep</b><span>The single biggest cause of "the cleaner broke my PC" complaints across the market.</span></div></div>
+        <div class="avoid"><span class="x">✕</span><div><b>Inflated error counts</b><span>No feature on this page reports a number it can't cite evidence for.</span></div></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<hr class="rule">
+
+<section id="faq">
+  <div class="wrap case">
+    <div class="case-tag"><b>Case 05</b>Questions people actually ask</div>
+    <div>
+      <h2>FAQ</h2>
+      <div class="faq">
+        <div class="faq-item"><b>Is my data sent to the cloud?</b><p>No. OptiGuard runs entirely on your PC. The only network calls are an optional update check and phishing-link heuristics — nothing about your files or installed programs is ever uploaded.</p></div>
+        <div class="faq-item"><b>Does it need administrator rights?</b><p>Yes — registry and Program Files access require it. You'll see one UAC prompt each time it starts.</p></div>
+        <div class="faq-item"><b>What happens to files it deletes?</b><p>They go to a 7-day local quarantine first, fully recoverable with one click. Nothing is gone for good by accident.</p></div>
+        <div class="faq-item"><b>Will it break anything, like registry cleaners used to?</b><p>Registry Cleaner only flags entries with concrete proof their target no longer exists, and automatically backs up every change to a .reg file before removing anything.</p></div>
+        <div class="faq-item"><b>Is it free?</b><p>Yes — no account, no upsells, no bundled software.</p></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<hr class="rule">
+
+<section class="closer" id="download">
+  <div class="wrap">
+    <h2>Run the scan. Read the evidence. Decide for yourself.</h2>
+    <p>Free, no account, no telemetry. Everything stays on your machine.</p>
+    <a class="btn-primary" href="../OptiGuard-Setup-4.10.0.exe">Download OptiGuard 4.10 →</a>
+  </div>
+</section>
+
+<div class="wrap">
+  <footer>
+    <span>© 2026 Ofir Shudari — All Rights Reserved</span>
+    <span>OptiGuard v4.10 · Windows 10/11</span>
+  </footer>
+</div>
+</div>
+
+<!-- ============================== HEBREW ============================== -->
+<div class="lang-he" dir="rtl" lang="he">
+<div class="wrap">
+  <div class="topbar">
+    <div class="brand">
+      <svg class="mark" viewBox="0 0 24 24" fill="none"><path d="M12 2l8 3v6c0 5-3.4 8.4-8 11-4.6-2.6-8-6-8-11V5l8-3z" fill="var(--accent)"/><path d="M8.5 12.2l2.4 2.4 4.6-4.9" stroke="var(--paper)" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      OptiGuard
+    </div>
+    <nav class="navlinks">
+      <a href="#problem-he">הבעיה</a>
+      <a href="#proof-he">איך זה עובד</a>
+      <a href="#features-he">יכולות</a>
+      <a href="#faq-he">שאלות נפוצות</a>
+      <a href="#avoid-he">מה לא נבנה</a>
+    </nav>
+    <div class="topbar-actions">
+      <button class="lang-toggle" onclick="setSiteLang('en')" aria-label="עבור לאנגלית">English</button>
+      <a class="cta-btn" href="#download-he">קבל את OptiGuard</a>
+    </div>
+  </div>
+</div>
+
+<header class="hero">
+  <div class="wrap hero-grid">
+    <div class="reveal">
+      <p class="eyebrow">טיפול מקיף במחשב · גרסה 4.10</p>
+      <h1>מנקה מחשב<br><em>שמראה את העבודה שלו.</em></h1>
+      <p class="lede">רוב כלי הניקוי ממציאים מספר שגיאות כדי להפחיד אתכם לשדרוג. OptiGuard סורק בעיות ספציפיות וניתנות להוכחה, מצטט את ההוכחה המדויקת לכל אחת, ושומר אפשרות ביטול של 7 ימים על כל פעולה שהיא נוגעת בה.</p>
+      <div class="hero-actions">
+        <a class="btn-primary" href="../OptiGuard-Setup-4.10.0.exe">הורד את המתקין ←</a>
+        <a class="btn-ghost" href="#proof-he">ראה את ההוכחות</a>
+      </div>
+    </div>
+    <div class="readout reveal" style="animation-delay:.1s">
+      <div class="readout-head"><span><span class="dot"></span>ציון בריאות מחשב</span><span>סריקה חיה</span></div>
+      <div class="readout-body">
+        <div class="score-row">
+          <span class="score-num">57</span>
+          <span class="score-cap">4 ממצאים, לכל אחד תיקון</span>
+        </div>
+        <div class="finding">
+          <span class="sev sev-hi"></span>
+          <div>חומת האש מושבתת<span class="path">Domain, Private, Public — Get-NetFirewallProfile</span></div>
+          <span class="fix">תקן זאת</span>
+        </div>
+        <div class="finding">
+          <span class="sev sev-mid"></span>
+          <div>18 רשומות רישום שאריות<span class="path">HKLM\...\Uninstall\{Battlefield™ 6} → נתיב ההתקנה חסר</span></div>
+          <span class="fix">סקור</span>
+        </div>
+        <div class="finding">
+          <span class="sev sev-mid"></span>
+          <div>תוסף דפדפן, הרשאות בסיכון גבוה<span class="path">manifest permission: host_permissions "&lt;all_urls&gt;"</span></div>
+          <span class="fix">סקור</span>
+        </div>
+        <div class="finding">
+          <span class="sev sev-ok"></span>
+          <div>הגנה בזמן אמת של Defender<span class="path">AMServiceEnabled: true — אין צורך בפעולה</span></div>
+          <span class="fix">תקין</span>
+        </div>
+      </div>
+      <div class="readout-foot mono" dir="ltr" style="text-align:right">ממצאים להמחשה מהרצות אבחון אמיתיות בפיתוח — לא סריקה של המחשב שלכם.</div>
+    </div>
+  </div>
+</header>
+
+<hr class="rule">
+
+<section id="problem-he">
+  <div class="wrap case">
+    <div class="case-tag"><b>מקרה 01</b>כלכלת ההפחדה</div>
+    <div>
+      <h2>ברירת המחדל של השוק היא להפחיד קודם.</h2>
+      <p class="lead">ביקורות עצמאיות ממשיכות למצוא את אותו דפוס: כלי ניקוי שמסמנים אלפי "שגיאות קריטיות" שאינן אמיתיות, ואז חוסמים את התיקון מאחורי שדרוג בתשלום. חלק מכלי "עדכון דרייברים" מסומנים כתוכנה זדונית של ממש. OptiGuard נבנתה כהיפוך מוחלט של השיטה הזו.</p>
+      <div class="contrast">
+        <div class="panel bad">
+          <div class="label">כלי ניקוי טיפוסי</div>
+          <p class="big">"נמצאו 14,782 שגיאות — שדרג כדי לתקן"</p>
+          <p>סריקת רישום עיוורת מסמנת כל דבר שנראה לא בשימוש, בלי הוכחה ובלי דרך לאמת אף טענה.</p>
+          <span class="cite">— דפוס מדווח, סקירת שוק כלי ניקוי מחשב, 2026</span>
+        </div>
+        <div class="panel good">
+          <div class="label">OptiGuard</div>
+          <p class="big">"18 רשומות — כל אחת מצטטת את הנתיב החסר"</p>
+          <p>רק רשומות רישום שתיקיית ההתקנה, המסיר או האייקון שלהן נעלמו באופן ניתן לאימות מהדיסק מסומנות. שום דבר אחר.</p>
+          <span class="cite" dir="ltr" style="display:block;text-align:right">registry-cleaner.scan() → RegistryCleanerData.cs</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<hr class="rule">
+
+<section id="proof-he">
+  <div class="wrap case">
+    <div class="case-tag"><b>מקרה 02</b>רשת הביטחון</div>
+    <div>
+      <h2>לכל ניקוי יש ביטול של 7 ימים.</h2>
+      <p class="lead">שום דבר לא נמחק ישירות. קבצים עוברים להסגר מקומי עם מניפסט שמתעד מאיפה הם הגיעו — לחיצה אחת משחזרת אצווה שלמה. נקודת שחזור של Windows נוצרת אוטומטית לפני פעולות בסיכון גבוה יותר.</p>
+      <div class="proof-log mono">
+<span class="muted">$</span> quarantine.log — bulk cleanup, 300 files<br>
+<span class="ok">✓</span> batch 20260910_a3f1 created<br>
+<span class="ok">✓</span> 300/300 files moved → quarantine/<br>
+<span class="ok">✓</span> manifest written in 213ms<span class="muted"> (one write per batch, not per file)</span><br>
+<span class="muted">$</span> undo last cleanup<br>
+<span class="ok">✓</span> 300/300 files restored to original path
+      </div>
+      <div class="metric-row">
+        <div class="metric"><div class="num">פי 99</div><div class="cap">ניקוי אצווה מהיר יותר אחרי תיקון ביצועים ב-2026</div></div>
+        <div class="metric"><div class="num">7 ימים</div><div class="cap">חלון ביטול לפני מחיקה סופית</div></div>
+        <div class="metric"><div class="num">4 שעות</div><div class="cap">צינון נקודת שחזור, כך שהניקוי לעולם לא ממתין שוב</div></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<hr class="rule">
+
+<section id="features-he">
+  <div class="wrap case">
+    <div class="case-tag"><b>מקרה 03</b>ערכת הכלים</div>
+    <div>
+      <h2>שבעה עשר כלים, תיק אחד.</h2>
+      <p class="lead">מאורגן בדרך שבה אתם באמת מגיעים אליהם — לא רשימה שטוחה של ארבעים אייקונים.</p>
+      <div class="groups">
+        <div class="group">
+          <h3>הסרת תוכנות</h3>
+          <div class="flist">
+            <div class="f"><b>תוכנות</b><span>הסרה רגילה, עמוקה או כפויה — עם זיהוי שאריות וציון ביטחון מקומי "בטוח להסרה"</span></div>
+            <div class="f"><b>אפליקציות ומשחקי Windows</b><span>חבילות UWP, כותרים מ-Steam/Epic/GOG</span></div>
+            <div class="f"><b>תוספי דפדפן</b><span>דירוג סיכון לפי הרשאות manifest אמיתיות</span></div>
+          </div>
+        </div>
+        <div class="group">
+          <h3>תחזוקה</h3>
+          <div class="flist">
+            <div class="f"><b>מנתח שטח דיסק</b><span>צלול לתוך תיקיות, מצא את 50 הקבצים הגדולים</span></div>
+            <div class="f"><b>מוצא כפילויות</b><span>משווה תוכן קובץ (SHA-1), לא רק שמות קבצים</span></div>
+            <div class="f"><b>מנקה זבל ומנהל הפעלה</b><span>מוסגר, לא נמחק ישירות — עם אפשרות לתזמון ניקוי אוטומטי</span></div>
+          </div>
+        </div>
+        <div class="group">
+          <h3>אבטחה ופרטיות</h3>
+          <div class="flist">
+            <div class="f"><b>מרכז אבטחה</b><span>קורא סטטוס אמיתי של Defender, חומת אש ו-Windows Update</span></div>
+            <div class="f"><b>לוח פרטיות</b><span>7 מתגים — אותם מפתחות רישום ש-Windows Settings משתמש בהם</span></div>
+            <div class="f"><b>בודק פישינג</b><span>סריקה היוריסטית לקישורים חשודים ושפת דחיפות</span></div>
+          </div>
+        </div>
+        <div class="group">
+          <h3>תובנה</h3>
+          <div class="flist">
+            <div class="f"><b>ציון בריאות מחשב</b><span>מספר אחד מ-7 אותות אמיתיים, לכל אחד תיקון</span></div>
+            <div class="f"><b>ציר זמן פעילות</b><span>היסטוריה כנה שנבנית מרישומי הסגר וגיבוי אמיתיים</span></div>
+            <div class="f"><b>בריאות מכשיר ודרייבר</b><span>קורא את Device Manager — לעולם לא מוריד דרייבר</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<hr class="rule">
+
+<section id="avoid-he">
+  <div class="wrap case">
+    <div class="case-tag"><b>מקרה 04</b>נעדר בכוונה</div>
+    <div>
+      <h2>כמה "פיצ'רים" שחקרנו וסירבנו לבנות.</h2>
+      <p class="lead">כל השמטה למטה הייתה החלטה, לא פספוס.</p>
+      <div class="avoid-list">
+        <div class="avoid"><span class="x">✕</span><div><b>מעדכן דרייברים אוטומטי</b><span>קטגוריית scareware מתועדת היטב — חלק נשלחים ממש כתוכנה זדונית. אנחנו קוראים את הסטטוס האמיתי של Device Manager ומפנים אתכם ל-Windows Update במקום.</span></div></div>
+        <div class="avoid"><span class="x">✕</span><div><b>"מייעל זיכרון RAM"</b><span>פסאודו-מדע מופרך ב-Windows מודרני. כיווץ כפוי של working sets מאט דברים, לא מזרז.</span></div></div>
+        <div class="avoid"><span class="x">✕</span><div><b>סריקת רישום עיוורת</b><span>הגורם המספר אחד ל"הכלי שבר לי את המחשב" בכל השוק.</span></div></div>
+        <div class="avoid"><span class="x">✕</span><div><b>מספרי שגיאות מנופחים</b><span>אף פיצ'ר בעמוד הזה לא מדווח מספר שהוא לא יכול לצטט לו הוכחה.</span></div></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<hr class="rule">
+
+<section id="faq-he">
+  <div class="wrap case">
+    <div class="case-tag"><b>מקרה 05</b>שאלות שאנשים באמת שואלים</div>
+    <div>
+      <h2>שאלות נפוצות</h2>
+      <div class="faq">
+        <div class="faq-item"><b>האם המידע שלי נשלח לענן?</b><p>לא. OptiGuard פועלת לגמרי במחשב שלכם. הקריאות היחידות לרשת הן בדיקת עדכונים אופציונלית והיוריסטיקת קישורי פישינג — שום דבר על הקבצים או התוכנות המותקנות שלכם לא מועלה.</p></div>
+        <div class="faq-item"><b>האם היא דורשת הרשאות מנהל?</b><p>כן — גישה לרישום ול-Program Files דורשת זאת. תראו חלון UAC אחד בכל הפעלה.</p></div>
+        <div class="faq-item"><b>מה קורה לקבצים שהיא מוחקת?</b><p>הם עוברים קודם להסגר מקומי של 7 ימים, ניתנים לשחזור מלא בלחיצה אחת. שום דבר לא נעלם סופית בטעות.</p></div>
+        <div class="faq-item"><b>האם היא תשבור משהו, כמו שניקויי רישום ידעו לעשות בעבר?</b><p>ניקוי הרישום מסמן רק רשומות עם הוכחה קונקרטית שהיעד שלהן כבר לא קיים, ומגבה אוטומטית כל שינוי לקובץ .reg לפני הסרה.</p></div>
+        <div class="faq-item"><b>האם היא חינמית?</b><p>כן — בלי חשבון, בלי הצעות שדרוג, בלי תוכנה נלווית.</p></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<hr class="rule">
+
+<section class="closer" id="download-he">
+  <div class="wrap">
+    <h2>הרץ את הסריקה. קרא את ההוכחות. תחליטו בעצמכם.</h2>
+    <p>חינם, בלי חשבון, בלי טלמטריה. הכל נשאר במחשב שלכם.</p>
+    <a class="btn-primary" href="../OptiGuard-Setup-4.10.0.exe">הורד את OptiGuard 4.10 ←</a>
+  </div>
+</section>
+
+<div class="wrap">
+  <footer>
+    <span>© 2026 אופיר שודרי — כל הזכויות שמורות</span>
+    <span>OptiGuard גרסה 4.10 · Windows 10/11</span>
+  </footer>
+</div>
+</div>
+
+<script>
+(function(){
+  function setSiteLang(lang){
+    document.documentElement.setAttribute('data-lang', lang);
+    document.documentElement.setAttribute('lang', lang === 'he' ? 'he' : 'en');
+    document.documentElement.setAttribute('dir', lang === 'he' ? 'rtl' : 'ltr');
+    try { localStorage.setItem('optiguard_site_lang', lang); } catch(e){}
+  }
+  window.setSiteLang = setSiteLang;
+  var saved = null;
+  try { saved = localStorage.getItem('optiguard_site_lang'); } catch(e){}
+  setSiteLang(saved === 'he' ? 'he' : 'en');
+})();
+</script>
