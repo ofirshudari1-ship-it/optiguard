@@ -1,0 +1,70 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Reconstructed project file for the custom installer (Setup.cs, namespace OptiGuardSetup) —
+    a separate program from the main app, with its own Main(). Builds to Setup-OptiGuard.exe.
+    net48 to match the main app's target and keep the whole OptiGuard project family consistent.
+  -->
+
+  <Import Project="build\Version.props" />
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net48</TargetFramework>
+    <UseWindowsForms>true</UseWindowsForms>
+    <LangVersion>latest</LangVersion>
+    <AssemblyName>OptiGuard-Setup</AssemblyName>
+    <RootNamespace>OptiGuardSetup</RootNamespace>
+    <ApplicationIcon>AppIcon.ico</ApplicationIcon>
+    <Product>OptiGuard Setup</Product>
+    <Company>OptiGuard</Company>
+    <AssemblyTitle>OptiGuard Setup</AssemblyTitle>
+    <Description>Installer for OptiGuard.</Description>
+    <GenerateAssemblyInfo>true</GenerateAssemblyInfo>
+    <!-- This .csproj sits at the project root, so the SDK's default **/*.cs glob would also
+         pull in src/*.cs (the main app, its own Main) and tools/GenIcon.cs (also its own Main).
+         Disable the default glob and include only Setup.cs explicitly. -->
+    <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Include="Setup.cs" />
+  </ItemGroup>
+
+  <!--
+    Setup.cs expects the main app's built exe as an embedded resource named
+    "OptiGuardSetup.OptiGuard.exe" (see WriteResourceToFile in Setup.cs).
+    src/OptiGuard.csproj must be built BEFORE this project — see build.ps1,
+    which builds them in the correct order. Building Setup.csproj on its own
+    without having built src/OptiGuard.csproj first will fail with a clear
+    error here rather than silently producing a broken installer.
+  -->
+  <ItemGroup>
+    <EmbeddedResource Include="src\bin\$(Configuration)\net48\OptiGuard.exe"
+                       Condition="Exists('src\bin\$(Configuration)\net48\OptiGuard.exe')">
+      <LogicalName>OptiGuardSetup.OptiGuard.exe</LogicalName>
+    </EmbeddedResource>
+    <!-- UI text files - installed alongside OptiGuard.exe (see Setup.cs DoInstall) -->
+    <EmbeddedResource Include="locales\en.json">
+      <LogicalName>OptiGuardSetup.locales.en.json</LogicalName>
+    </EmbeddedResource>
+    <EmbeddedResource Include="locales\he.json">
+      <LogicalName>OptiGuardSetup.locales.he.json</LogicalName>
+    </EmbeddedResource>
+    <!-- So Settings -> "View Changelog" in the installed app has something to open -->
+    <EmbeddedResource Include="CHANGELOG.md">
+      <LogicalName>OptiGuardSetup.CHANGELOG.md</LogicalName>
+    </EmbeddedResource>
+    <!-- So Settings -> "View License (EULA)" in the installed app has something to open
+         (see _AUDIT/STANDARDS.md 11.11 - freeware still needs an EULA) -->
+    <EmbeddedResource Include="EULA.md">
+      <LogicalName>OptiGuardSetup.EULA.md</LogicalName>
+    </EmbeddedResource>
+  </ItemGroup>
+
+  <Target Name="EnsureMainAppBuilt" BeforeTargets="BeforeBuild">
+    <Error Condition="!Exists('src\bin\$(Configuration)\net48\OptiGuard.exe')"
+           Text="src\bin\$(Configuration)\net48\OptiGuard.exe not found. Build src\OptiGuard.csproj first (or run build.ps1, which does this in the right order)." />
+  </Target>
+
+</Project>
