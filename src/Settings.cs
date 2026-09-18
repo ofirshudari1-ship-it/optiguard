@@ -10,11 +10,18 @@ namespace UninstallerPro
         public string Theme = "Light";
         public bool ShowSystemComponents = false;
         public string Language = I18n.English;
+        // Retained (but no longer surfaced in Settings UI) for backward
+        // compatibility with settings.json files written before 4.10.2,
+        // when updates were checked against a self-hosted manifest URL
+        // instead of GitHub Releases.
         public string UpdateManifestUrl = "";
         public bool CreateRestorePoints = true;
         public bool FirstLaunchCompleted = false;
         public bool EnableNotifications = true;
-        public bool AutoCheckUpdates = false;
+        // Default enabled (opt-out): checks GitHub Releases for a newer
+        // OptiGuard version a few seconds after startup, at most once per
+        // session. See UpdateChecker.cs.
+        public bool AutoCheckUpdates = true;
         public int QuarantineRetentionDays = 7;
 
         // Scheduled automatic cleanup (added 4.10.0, see ScheduledCleanupData.cs) -

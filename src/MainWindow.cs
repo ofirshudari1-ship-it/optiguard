@@ -37,6 +37,11 @@ namespace UninstallerPro
     {
         private AppSettings _settings;
 
+        // Guards the background update check so it runs at most once per
+        // process lifetime, even if the main window were ever rebuilt.
+        // Static (not instance) on purpose - there is only ever one process.
+        private static bool _updateCheckedThisSession = false;
+
         // Programs tab state
         private List<InstalledProgram> _allPrograms = new List<InstalledProgram>();
         private ListCollectionView _programsView;
@@ -372,15 +377,20 @@ namespace UninstallerPro
             var text = new TextBlock { Foreground = Theme.Get("TextBrush"), VerticalAlignment = VerticalAlignment.Center, TextWrapping = TextWrapping.Wrap };
             row.Children.Add(text);
 
-            if (_settings.AutoCheckUpdates && !string.IsNullOrWhiteSpace(_settings.UpdateManifestUrl))
+            if (_settings.AutoCheckUpdates && !_updateCheckedThisSession)
             {
-                var url = _settings.UpdateManifestUrl;
+                _updateCheckedThisSession = true;
                 var dispatcher = Dispatcher;
-                Task.Run(() =>
+                // Fire a few seconds after launch (never blocks startup) and
+                // fail completely silently - a background version check must
+                // never interrupt or alarm the user just because GitHub is
+                // unreachable, rate-limited, or the machine is offline.
+                Task.Run(async () =>
                 {
                     try
                     {
-                        var info = UpdateChecker.Check(url, Program.AppVersion);
+                        await Task.Delay(TimeSpan.FromSeconds(5));
+                        var info = UpdateChecker.Check(Program.AppVersion);
                         if (info != null && info.Available && string.IsNullOrEmpty(info.Error))
                         {
                             dispatcher.Invoke(() =>
@@ -389,11 +399,8 @@ namespace UninstallerPro
                                 banner.Visibility = Visibility.Visible;
                                 btnDownload.Click += (s, e) =>
                                 {
-                                    string dlError;
-                                    btnDownload.IsEnabled = false;
-                                    bool ok = UpdateChecker.DownloadAndLaunchInstaller(info.DownloadUrl, out dlError);
-                                    if (!ok) { btnDownload.IsEnabled = true; Dialogs.ShowError(I18n.T("generic_error_title"), string.Format(I18n.T("update_download_failed"), dlError)); return; }
-                                    Application.Current.Shutdown();
+                                    string openError;
+                                    UpdateChecker.OpenReleasePage(info.ReleaseUrl, out openError);
                                 };
                             });
                         }
@@ -2396,33 +2403,26 @@ namespace UninstallerPro
             panel.Children.Add(freqRow);
 
             panel.Children.Add(SectionLabel(I18n.T("section_updates")));
-            panel.Children.Add(new TextBlock { Text = I18n.T("update_url_label"), Foreground = Theme.Get("TextBrush"), Margin = new Thickness(0,0,0,4) });
-            var txtUpdateUrl = new TextBox { Text = _settings.UpdateManifestUrl, Height = 28, Width = 460, HorizontalAlignment = HorizontalAlignment.Left, Margin = new Thickness(0,0,0,10) };
-            panel.Children.Add(txtUpdateUrl);
+            panel.Children.Add(new TextBlock { Text = I18n.T("update_source_label"), Foreground = Theme.Get("TextMutedBrush"), TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0,0,0,10) });
             var btnCheckUpdates = MakeButton(I18n.T("btn_check_updates"), "GhostButtonStyle", 170);
             btnCheckUpdates.HorizontalAlignment = HorizontalAlignment.Left;
             btnCheckUpdates.Margin = new Thickness(0,0,0,20);
-            btnCheckUpdates.Click += (s, e) =>
+            btnCheckUpdates.Click += async (s, e) =>
             {
-                var url = txtUpdateUrl.Text;
-                if (string.IsNullOrWhiteSpace(url)) { Dialogs.Info("", I18n.T("update_not_configured")); return; }
+                btnCheckUpdates.IsEnabled = false;
                 Mouse.OverrideCursor = Cursors.Wait;
-                var info = UpdateChecker.Check(url, Program.AppVersion);
+                var info = await Task.Run(() => UpdateChecker.Check(Program.AppVersion));
                 Mouse.OverrideCursor = null;
-                if (!string.IsNullOrEmpty(info.Error) && info.Error != "not_configured")
+                btnCheckUpdates.IsEnabled = true;
+                if (!string.IsNullOrEmpty(info.Error))
                 {
                     Dialogs.ShowError(I18n.T("generic_error_title"), string.Format(I18n.T("update_check_error"), info.Error));
                     return;
                 }
                 if (!info.Available) { Dialogs.Info("", string.Format(I18n.T("update_up_to_date"), Program.AppVersion)); return; }
                 if (!Dialogs.Confirm(I18n.T("update_available_title"), string.Format(I18n.T("update_available_msg"), info.LatestVersion, Program.AppVersion, info.Notes ?? ""))) return;
-                Mouse.OverrideCursor = Cursors.Wait;
-                string dlError;
-                bool ok = UpdateChecker.DownloadAndLaunchInstaller(info.DownloadUrl, out dlError);
-                Mouse.OverrideCursor = null;
-                if (!ok) { Dialogs.ShowError(I18n.T("generic_error_title"), string.Format(I18n.T("update_download_failed"), dlError)); return; }
-                Dialogs.Info(I18n.T("generic_done_title"), I18n.T("update_launching"));
-                Application.Current.Shutdown();
+                string openError;
+                UpdateChecker.OpenReleasePage(info.ReleaseUrl, out openError);
             };
             panel.Children.Add(btnCheckUpdates);
 
@@ -2491,7 +2491,6 @@ namespace UninstallerPro
                 _settings.Theme = cmbTheme.SelectedIndex == 1 ? "Dark" : (cmbTheme.SelectedIndex == 2 ? "HighContrast" : "Light");
                 _settings.Language = cmbLang.SelectedIndex == 1 ? I18n.Hebrew : I18n.English;
                 _settings.ShowSystemComponents = chkDefaultSystem.IsChecked == true;
-                _settings.UpdateManifestUrl = txtUpdateUrl.Text;
                 _settings.CreateRestorePoints = chkRestorePoint.IsChecked == true;
                 int parsedRetention;
                 if (int.TryParse(cmbRetention.SelectedItem as string, out parsedRetention)) _settings.QuarantineRetentionDays = parsedRetention;
