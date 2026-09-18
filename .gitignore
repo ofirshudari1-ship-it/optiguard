@@ -22,3 +22,8 @@ src/OptiGuard.exe
 # not source - never commit it. build.ps1 regenerates it from source.
 OptiGuard-Setup-*.exe
 Setup-OptiGuard.exe
+SPEC.md
+CHANGELOG.md
+PROJECT.md
+RELEASE-CHECKLIST.md
+DELETIONS.md
