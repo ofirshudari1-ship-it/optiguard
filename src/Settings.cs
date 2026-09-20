@@ -31,6 +31,23 @@ namespace UninstallerPro
         public bool ScheduledCleanupEnabled = false;
         public string ScheduledCleanupFrequency = "Weekly"; // Daily | Weekly | Monthly
 
+        // Which junk categories an unattended (--auto-clean) run is allowed to
+        // touch, comma-separated JunkCategory.Key values (see
+        // JunkCleanerData.cs). Recycle Bin is never included (see
+        // ScheduledCleanupData.RunHeadlessCleanup). Default = every other
+        // category, matching the original 4.10.0 behavior so upgrading users
+        // see no change unless they visit Settings > Advanced themselves.
+        public string ScheduledCleanupCategories = "user_temp,win_temp,prefetch,win_update,thumbnails,browser_cache";
+
+        // Safety valve for unattended cleanup (added 4.11.0): if the total
+        // size found across the included categories exceeds this many MB, the
+        // scheduled run skips deleting anything and just notifies instead -
+        // an unusually large amount of "junk" is more likely a sign something
+        // unexpected is going on than something safe to auto-delete while the
+        // user isn't watching. 0 = no limit (deletes regardless of size, the
+        // original behavior).
+        public int ScheduledCleanupMaxSizeMB = 0;
+
         // Window state persistence (size/position/maximized) - see MainWindow.cs.
         // -1 sentinel means "never saved yet" -> MainWindow falls back to its
         // built-in default size/centered position instead of using these.
@@ -60,6 +77,8 @@ namespace UninstallerPro
                     if (dict.ContainsKey("QuarantineRetentionDays") && dict["QuarantineRetentionDays"] != null) s.QuarantineRetentionDays = Convert.ToInt32(dict["QuarantineRetentionDays"]);
                     if (dict.ContainsKey("ScheduledCleanupEnabled") && dict["ScheduledCleanupEnabled"] != null) s.ScheduledCleanupEnabled = Convert.ToBoolean(dict["ScheduledCleanupEnabled"]);
                     if (dict.ContainsKey("ScheduledCleanupFrequency") && dict["ScheduledCleanupFrequency"] != null) s.ScheduledCleanupFrequency = dict["ScheduledCleanupFrequency"].ToString();
+                    if (dict.ContainsKey("ScheduledCleanupCategories") && dict["ScheduledCleanupCategories"] != null) s.ScheduledCleanupCategories = dict["ScheduledCleanupCategories"].ToString();
+                    if (dict.ContainsKey("ScheduledCleanupMaxSizeMB") && dict["ScheduledCleanupMaxSizeMB"] != null) s.ScheduledCleanupMaxSizeMB = Convert.ToInt32(dict["ScheduledCleanupMaxSizeMB"]);
                     if (dict.ContainsKey("WindowWidth") && dict["WindowWidth"] != null) s.WindowWidth = Convert.ToDouble(dict["WindowWidth"]);
                     if (dict.ContainsKey("WindowHeight") && dict["WindowHeight"] != null) s.WindowHeight = Convert.ToDouble(dict["WindowHeight"]);
                     if (dict.ContainsKey("WindowLeft") && dict["WindowLeft"] != null) s.WindowLeft = Convert.ToDouble(dict["WindowLeft"]);
@@ -82,6 +101,7 @@ namespace UninstallerPro
                 {
                     { "Theme", Theme }, { "ShowSystemComponents", ShowSystemComponents }, { "Language", Language }, { "UpdateManifestUrl", UpdateManifestUrl }, { "CreateRestorePoints", CreateRestorePoints }, { "FirstLaunchCompleted", FirstLaunchCompleted }, { "EnableNotifications", EnableNotifications }, { "AutoCheckUpdates", AutoCheckUpdates }, { "QuarantineRetentionDays", QuarantineRetentionDays },
                     { "ScheduledCleanupEnabled", ScheduledCleanupEnabled }, { "ScheduledCleanupFrequency", ScheduledCleanupFrequency },
+                    { "ScheduledCleanupCategories", ScheduledCleanupCategories }, { "ScheduledCleanupMaxSizeMB", ScheduledCleanupMaxSizeMB },
                     { "WindowWidth", WindowWidth }, { "WindowHeight", WindowHeight }, { "WindowLeft", WindowLeft }, { "WindowTop", WindowTop }, { "WindowMaximized", WindowMaximized }
                 }));
             }

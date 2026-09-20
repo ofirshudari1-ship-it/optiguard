@@ -1,6 +1,8 @@
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using System.Web.Script.Serialization;
 
 namespace UninstallerPro
@@ -35,6 +37,12 @@ namespace UninstallerPro
             public DateTime RanAt { get; set; }
             public long FreedBytes { get; set; }
             public bool Notified { get; set; }
+            // True when the run found more junk than the user's configured
+            // safety limit (AppSettings.ScheduledCleanupMaxSizeMB) and skipped
+            // deleting anything instead of cleaning unattended. FoundBytes is
+            // how much it found (for the notification), while FreedBytes stays 0.
+            public bool SkippedThreshold { get; set; }
+            public long FoundBytes { get; set; }
         }
 
         private static string MarkerFile { get { return Path.Combine(AppPaths.DataDir, "last-auto-clean.json"); } }
@@ -116,16 +124,46 @@ namespace UninstallerPro
         // silently do things" principle already applied to quarantine purges).
         public static void RunHeadlessCleanup()
         {
+            RunHeadlessCleanup(AppSettings.Load());
+        }
+
+        // Overload used by Program.cs (which already has the loaded settings
+        // on hand) so the unattended run respects the user's category
+        // selection and safety-limit choices from Settings > Advanced.
+        public static void RunHeadlessCleanup(AppSettings settings)
+        {
             long freed = 0;
+            long found = 0;
+            bool skipped = false;
             try
             {
-                var batchId = Quarantine.NewBatchId();
-                foreach (var category in JunkCleanerData.ScanAll())
+                var allowedCategories = new HashSet<string>(
+                    (settings != null ? settings.ScheduledCleanupCategories : null ?? "")
+                        .Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries));
+
+                var candidates = JunkCleanerData.ScanAll()
+                    .Where(c => !c.IsRecycleBin) // not reversible - never touched unattended
+                    .Where(c => allowedCategories.Count == 0 || allowedCategories.Contains(c.Key))
+                    .ToList();
+
+                found = candidates.Sum(c => c.SizeBytes);
+
+                var maxSizeMb = settings != null ? settings.ScheduledCleanupMaxSizeMB : 0;
+                if (maxSizeMb > 0 && found > (long)maxSizeMb * 1024 * 1024)
                 {
-                    if (category.IsRecycleBin) continue; // not reversible - skip in unattended mode
-                    freed += JunkCleanerData.Clean(category, batchId);
+                    skipped = true;
+                    Logger.Log("Scheduled auto-clean skipped: found " + JunkCleanerData.FormatSize(found) +
+                               ", over the " + maxSizeMb + " MB safety limit.");
                 }
-                Logger.Log("Scheduled auto-clean finished, freed " + JunkCleanerData.FormatSize(freed));
+                else
+                {
+                    var batchId = Quarantine.NewBatchId();
+                    foreach (var category in candidates)
+                    {
+                        freed += JunkCleanerData.Clean(category, batchId);
+                    }
+                    Logger.Log("Scheduled auto-clean finished, freed " + JunkCleanerData.FormatSize(freed));
+                }
             }
             catch (Exception ex)
             {
@@ -134,7 +172,7 @@ namespace UninstallerPro
             try
             {
                 AppPaths.EnsureDataDir();
-                var info = new LastRunInfo { RanAt = DateTime.Now, FreedBytes = freed, Notified = false };
+                var info = new LastRunInfo { RanAt = DateTime.Now, FreedBytes = freed, Notified = false, SkippedThreshold = skipped, FoundBytes = found };
                 var serializer = new JavaScriptSerializer();
                 File.WriteAllText(MarkerFile, serializer.Serialize(info));
             }

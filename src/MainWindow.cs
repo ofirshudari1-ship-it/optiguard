@@ -164,8 +164,16 @@ namespace UninstallerPro
                 var pending = ScheduledCleanupData.TakePendingNotification();
                 if (notifyEnabled && pending != null)
                 {
-                    var freedText = JunkCleanerData.FormatSize(pending.FreedBytes);
-                    uiDispatcher.Invoke(() => Toast.Show(string.Format(I18n.T("toast_auto_clean_ran"), freedText, pending.RanAt.ToString("dd/MM/yyyy HH:mm"))));
+                    if (pending.SkippedThreshold)
+                    {
+                        var foundText = JunkCleanerData.FormatSize(pending.FoundBytes);
+                        uiDispatcher.Invoke(() => Toast.Show(string.Format(I18n.T("toast_auto_clean_skipped"), foundText, pending.RanAt.ToString("dd/MM/yyyy HH:mm"))));
+                    }
+                    else
+                    {
+                        var freedText = JunkCleanerData.FormatSize(pending.FreedBytes);
+                        uiDispatcher.Invoke(() => Toast.Show(string.Format(I18n.T("toast_auto_clean_ran"), freedText, pending.RanAt.ToString("dd/MM/yyyy HH:mm"))));
+                    }
                 }
             });
 
@@ -2341,12 +2349,32 @@ namespace UninstallerPro
             langRow.Children.Add(new TextBlock { Text = I18n.T("restart_note"), Foreground = Theme.Get("TextMutedBrush"), VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(12,0,0,0) });
             panel.Children.Add(langRow);
 
-            panel.Children.Add(SectionLabel(I18n.T("section_programs_settings")));
+            // Advanced settings — collapsed by default. Power-user options
+            // (default program-list filter, log management, and fine control
+            // over the scheduled cleanup) live here instead of the main flow,
+            // so a casual user sees a short, focused Settings page while the
+            // options are still one click away for anyone who wants them.
+            var advancedPanel = new StackPanel { Visibility = Visibility.Collapsed };
+            var btnToggleAdvanced = MakeButton(I18n.T("btn_show_advanced"), "GhostButtonStyle", 220);
+            btnToggleAdvanced.HorizontalAlignment = HorizontalAlignment.Left;
+            btnToggleAdvanced.Margin = new Thickness(0,0,0,20);
+            btnToggleAdvanced.Click += (s, e) =>
+            {
+                bool showing = advancedPanel.Visibility != Visibility.Visible;
+                advancedPanel.Visibility = showing ? Visibility.Visible : Visibility.Collapsed;
+                btnToggleAdvanced.Content = I18n.T(showing ? "btn_hide_advanced" : "btn_show_advanced");
+            };
+            panel.Children.Add(btnToggleAdvanced);
+            panel.Children.Add(advancedPanel);
+
+            advancedPanel.Children.Add(new TextBlock { Text = I18n.T("advanced_settings_desc"), Foreground = Theme.Get("TextMutedBrush"), TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0,0,0,16) });
+
+            advancedPanel.Children.Add(SectionLabel(I18n.T("section_programs_settings")));
             var chkDefaultSystem = new CheckBox { Content = I18n.T("default_show_system"), Style = (Style)Theme.GetStyle("CardCheckBoxStyle"), Margin = new Thickness(0,0,0,20) };
             chkDefaultSystem.IsChecked = _settings.ShowSystemComponents;
-            panel.Children.Add(chkDefaultSystem);
+            advancedPanel.Children.Add(chkDefaultSystem);
 
-            panel.Children.Add(SectionLabel(I18n.T("section_logs")));
+            advancedPanel.Children.Add(SectionLabel(I18n.T("section_logs")));
             var logsRow = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0,0,0,20) };
             var btnOpenLogFolder = MakeButton(I18n.T("btn_open_log_folder"), "GhostButtonStyle", 170);
             btnOpenLogFolder.Click += (s, e) => { AppPaths.EnsureDataDir(); Process.Start("explorer.exe", "\"" + AppPaths.DataDir + "\""); };
@@ -2363,7 +2391,37 @@ namespace UninstallerPro
             };
             logsRow.Children.Add(btnOpenLogFolder);
             logsRow.Children.Add(btnClearLogs);
-            panel.Children.Add(logsRow);
+            advancedPanel.Children.Add(logsRow);
+
+            // Scheduled cleanup fine-tuning: which categories an unattended run
+            // may touch, plus a size safety limit. Kept in Advanced since it
+            // only matters once "Scheduled automatic cleanup" (below, in the
+            // main flow) is actually turned on.
+            advancedPanel.Children.Add(SectionLabel(I18n.T("scheduled_cleanup_categories_label")));
+            var scheduledCategoryKeys = new[] { "user_temp", "win_temp", "browser_cache", "win_update", "thumbnails", "prefetch" };
+            var scheduledCategoryLabelKeys = new[] { "junk_user_temp", "junk_win_temp", "junk_browser_cache", "junk_win_update", "junk_thumbnails", "junk_prefetch" };
+            var selectedScheduledCategories = new HashSet<string>(_settings.ScheduledCleanupCategories.Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries));
+            var categoryChecks = new List<CheckBox>();
+            var categoriesPanel = new WrapPanel { Margin = new Thickness(0,0,0,16) };
+            for (int i = 0; i < scheduledCategoryKeys.Length; i++)
+            {
+                var chk = new CheckBox { Content = I18n.T(scheduledCategoryLabelKeys[i]), Style = (Style)Theme.GetStyle("CardCheckBoxStyle"), Margin = new Thickness(0,0,20,10), Tag = scheduledCategoryKeys[i] };
+                chk.IsChecked = selectedScheduledCategories.Contains(scheduledCategoryKeys[i]);
+                categoryChecks.Add(chk);
+                categoriesPanel.Children.Add(chk);
+            }
+            advancedPanel.Children.Add(categoriesPanel);
+
+            var safetyRow = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0,0,0,20) };
+            safetyRow.Children.Add(new TextBlock { Text = I18n.T("scheduled_cleanup_safety_label"), Foreground = Theme.Get("TextBrush"), VerticalAlignment = VerticalAlignment.Center, TextWrapping = TextWrapping.Wrap, Width = 320, Margin = new Thickness(0,0,10,0) });
+            var cmbSafety = new ComboBox { Width = 140, Height = 28 };
+            int[] safetyOptionsMb = { 0, 1024, 5120, 10240 };
+            string[] safetyOptionKeys = { "opt_no_limit", "opt_1gb", "opt_5gb", "opt_10gb" };
+            foreach (var k in safetyOptionKeys) cmbSafety.Items.Add(I18n.T(k));
+            var safetyIdx = Array.IndexOf(safetyOptionsMb, _settings.ScheduledCleanupMaxSizeMB);
+            cmbSafety.SelectedIndex = safetyIdx >= 0 ? safetyIdx : 0;
+            safetyRow.Children.Add(cmbSafety);
+            advancedPanel.Children.Add(safetyRow);
 
             panel.Children.Add(SectionLabel(I18n.T("section_safety")));
             var chkRestorePoint = new CheckBox { Content = I18n.T("restore_point_toggle"), Style = (Style)Theme.GetStyle("CardCheckBoxStyle"), Margin = new Thickness(0,0,0,14) };
@@ -2401,6 +2459,7 @@ namespace UninstallerPro
             cmbFrequency.SelectedIndex = freqIdx >= 0 ? freqIdx : 1;
             freqRow.Children.Add(cmbFrequency);
             panel.Children.Add(freqRow);
+            panel.Children.Add(new TextBlock { Text = I18n.T("scheduled_cleanup_note_advanced"), Foreground = Theme.Get("TextMutedBrush"), FontStyle = FontStyles.Italic, TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0,-12,0,20) });
 
             panel.Children.Add(SectionLabel(I18n.T("section_updates")));
             panel.Children.Add(new TextBlock { Text = I18n.T("update_source_label"), Foreground = Theme.Get("TextMutedBrush"), TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0,0,0,10) });
@@ -2502,6 +2561,10 @@ namespace UninstallerPro
                 var scheduledCleanupWasFrequency = _settings.ScheduledCleanupFrequency;
                 _settings.ScheduledCleanupEnabled = chkScheduledCleanup.IsChecked == true;
                 _settings.ScheduledCleanupFrequency = freqKeys[Math.Max(0, cmbFrequency.SelectedIndex)];
+
+                var chosenCategories = categoryChecks.Where(c => c.IsChecked == true).Select(c => (string)c.Tag);
+                _settings.ScheduledCleanupCategories = string.Join(",", chosenCategories);
+                _settings.ScheduledCleanupMaxSizeMB = safetyOptionsMb[Math.Max(0, cmbSafety.SelectedIndex)];
 
                 _settings.Save();
                 _chkShowSystem.IsChecked = _settings.ShowSystemComponents;

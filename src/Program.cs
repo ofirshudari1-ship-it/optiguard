@@ -40,7 +40,8 @@ namespace UninstallerPro
             // like a normal unattended scheduled task should behave.
             if (args.Length > 0 && args[0] == "--auto-clean")
             {
-                try { I18n.CurrentLang = AppSettings.Load().Language; } catch { }
+                var autoCleanSettings = AppSettings.Load();
+                try { I18n.CurrentLang = autoCleanSettings.Language; } catch { }
                 bool createdForAutoClean;
                 using (new Mutex(true, SingleInstanceMutexName, out createdForAutoClean))
                 {
@@ -53,7 +54,7 @@ namespace UninstallerPro
                         return 0;
                     }
                     Logger.Log("Scheduled auto-clean started (headless).");
-                    ScheduledCleanupData.RunHeadlessCleanup();
+                    ScheduledCleanupData.RunHeadlessCleanup(autoCleanSettings);
                 }
                 return 0;
             }

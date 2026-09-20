@@ -82,10 +82,18 @@ just deleted.
 
 Language, theme, notifications, auto-update checks, quarantine retention
 (default 7 days), restore-point creation before risky cleanups, and log file
-access — all in one place.
+access — all in one place. Click **"Show advanced settings"** for power-user
+options: the default Programs filter, log management, and — if you use
+scheduled automatic cleanup — exactly which junk categories it's allowed to
+touch and a size safety limit above which it skips deleting and just
+notifies you instead.
 
 שפה, ערכת נושא, התראות, בדיקת עדכונים אוטומטית, משך שמירת הסגר (ברירת מחדל 7
 ימים), יצירת נקודת שחזור לפני ניקוי מסוכן, וגישה לקובצי לוג - הכל במקום אחד.
+לחצו על **"הצג הגדרות מתקדמות"** לאפשרויות למשתמשים מתקדמים: סינון ברירת
+המחדל של רשימת התוכנות, ניהול לוגים, ואם משתמשים בניקוי מתוזמן - בדיוק אילו
+קטגוריות זבל הוא רשאי לגעת בהן וגבול בטיחות שמעליו הוא ידלג על מחיקה ורק
+יתריע.
 
 ## Something went wrong? / משהו השתבש?
 
