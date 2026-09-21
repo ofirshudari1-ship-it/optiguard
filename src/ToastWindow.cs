@@ -1,5 +1,6 @@
 using System;
 using System.Windows;
+using System.Windows.Automation;
 using System.Windows.Controls;
 using System.Windows.Media;
 using System.Windows.Media.Animation;
@@ -31,7 +32,12 @@ namespace UninstallerPro
                     Topmost = true,
                     Width = 340,
                     SizeToContent = SizeToContent.Height,
-                    Opacity = 0
+                    Opacity = 0,
+                    // Toast is a plain top-level Window (not a child of MainWindow),
+                    // so it does NOT inherit MainWindow's FlowDirection - without this
+                    // Hebrew toast text renders left-aligned/LTR-flowed even though the
+                    // rest of the app is in RTL (section 18.1).
+                    FlowDirection = I18n.IsRtl ? FlowDirection.RightToLeft : FlowDirection.LeftToRight
                 };
 
                 var workArea = SystemParameters.WorkArea;
@@ -60,6 +66,10 @@ namespace UninstallerPro
                     VerticalAlignment = VerticalAlignment.Top,
                     Padding = new Thickness(4)
                 };
+                // Icon-only button ("✕" glyph as Content) - without an explicit
+                // AutomationProperties.Name, Narrator reads the raw character
+                // instead of a meaningful label (section 18.2).
+                AutomationProperties.SetName(btnClose, I18n.T("btn_close"));
                 DockPanel.SetDock(btnClose, I18n.IsRtl ? Dock.Left : Dock.Right);
                 row.Children.Add(btnClose);
 

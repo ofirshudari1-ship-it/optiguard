@@ -7,6 +7,7 @@ using System.Linq;
 using System.Reflection;
 using System.Threading.Tasks;
 using System.Windows;
+using System.Windows.Automation;
 using System.Windows.Controls;
 using System.Windows.Data;
 using System.Windows.Input;
@@ -373,6 +374,7 @@ namespace UninstallerPro
 
             var btnDismiss = MakeButton("✕", "GhostButtonStyle", 32);
             btnDismiss.Height = 28;
+            AutomationProperties.SetName(btnDismiss, I18n.T("btn_close"));
             DockPanel.SetDock(btnDismiss, I18n.IsRtl ? Dock.Left : Dock.Right);
             btnDismiss.Click += (s, e) => banner.Visibility = Visibility.Collapsed;
             row.Children.Add(btnDismiss);
@@ -577,7 +579,13 @@ namespace UninstallerPro
 
         private Border BuildNavButton(NavEntry entry)
         {
-            var border = new Border { Padding = new Thickness(14,10,14,10), Margin = new Thickness(0,2,0,2), CornerRadius = new CornerRadius(8), Cursor = Cursors.Hand, Background = Brushes.Transparent };
+            var border = new Border
+            {
+                Padding = new Thickness(14,10,14,10), Margin = new Thickness(0,2,0,2), CornerRadius = new CornerRadius(8),
+                Cursor = Cursors.Hand, Background = Brushes.Transparent,
+                BorderThickness = new Thickness(2), BorderBrush = Brushes.Transparent,
+                Focusable = true, SnapsToDevicePixels = true
+            };
             var row = new StackPanel { Orientation = Orientation.Horizontal };
             string icon;
             if (NavIcons.TryGetValue(entry.Key, out icon))
@@ -587,7 +595,24 @@ namespace UninstallerPro
             var text = new TextBlock { Text = I18n.T(entry.LabelKey), FontSize = 13.5, Foreground = Theme.Get("TextBrush"), VerticalAlignment = VerticalAlignment.Center };
             row.Children.Add(text);
             border.Child = row;
+
+            // This is a custom-drawn Border, not a real Button/ListBoxItem, so
+            // none of WPF's built-in keyboard/Narrator support is free here -
+            // it's the app's whole primary navigation, so this matters a lot
+            // (section 18.2). Wired explicitly: Tab reaches it, Enter/Space
+            // activates it exactly like clicking it, a visible focus ring shows
+            // while it's keyboard-focused (the flat Border has no default WPF
+            // focus adorner the way a Control does), and Narrator gets a real
+            // name instead of silently skipping a clickable-but-invisible-to-it
+            // element.
+            AutomationProperties.SetName(border, I18n.T(entry.LabelKey));
             border.MouseLeftButtonUp += (s, e) => NavigateTo(entry.Key);
+            border.KeyDown += (s, e) =>
+            {
+                if (e.Key == Key.Enter || e.Key == Key.Space) { NavigateTo(entry.Key); e.Handled = true; }
+            };
+            border.GotKeyboardFocus += (s, e) => border.BorderBrush = Theme.Get("AccentBrush");
+            border.LostKeyboardFocus += (s, e) => border.BorderBrush = Brushes.Transparent;
             border.MouseEnter += (s, e) => { if (_currentNavKey != entry.Key) border.Background = Theme.Get("BorderColorBrush"); };
             border.MouseLeave += (s, e) => { if (_currentNavKey != entry.Key) border.Background = Brushes.Transparent; };
             _navButtons[entry.Key] = border;
@@ -786,6 +811,9 @@ namespace UninstallerPro
 
             var btnRefreshScore = MakeButton("🔄", "GhostButtonStyle", 34);
             btnRefreshScore.ToolTip = I18n.T("btn_refresh");
+            // Icon-only button (emoji Content) - Narrator would otherwise read
+            // the raw glyph instead of a meaningful label (section 18.2).
+            AutomationProperties.SetName(btnRefreshScore, I18n.T("btn_refresh"));
             DockPanel.SetDock(btnRefreshScore, I18n.IsRtl ? Dock.Left : Dock.Right);
             btnRefreshScore.VerticalAlignment = VerticalAlignment.Top;
             outer.Children.Add(btnRefreshScore);
@@ -1704,6 +1732,10 @@ namespace UninstallerPro
             bottom.Children.Add(spaceStatusLbl);
             dock.Children.Add(bottom);
 
+            var spaceLoadingBar = new ProgressBar { Height = 4, IsIndeterminate = true, Margin = new Thickness(14,0,14,4), Visibility = Visibility.Collapsed };
+            DockPanel.SetDock(spaceLoadingBar, Dock.Top);
+            dock.Children.Add(spaceLoadingBar);
+
             _gridSpace = CreateGrid(
                 Tuple.Create("", "Icon", 0.3),
                 Tuple.Create(I18n.T("col_space_name"), "Name", 2.2),
@@ -1718,10 +1750,17 @@ namespace UninstallerPro
                 _spaceCurrentPath = path;
                 _spacePathLabel.Text = path;
                 _gridSpace.ItemsSource = null;
-                spaceStatusLbl.Text = "";
+                // Scanning a large/slow folder can take a few seconds - a thin
+                // indeterminate bar plus status text instead of just an empty
+                // grid, so it reads as "working" rather than "broken/empty"
+                // (section 18.5).
+                spaceStatusLbl.Text = I18n.T("diskspace_scanning");
+                spaceLoadingBar.Visibility = Visibility.Visible;
                 Mouse.OverrideCursor = Cursors.Wait;
                 _spaceEntries = await Task.Run(() => DiskSpaceAnalyzerData.AnalyzeFolder(path));
                 Mouse.OverrideCursor = null;
+                spaceLoadingBar.Visibility = Visibility.Collapsed;
+                spaceStatusLbl.Text = "";
                 _gridSpace.ItemsSource = _spaceEntries;
             };
 

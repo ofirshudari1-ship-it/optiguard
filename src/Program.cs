@@ -76,7 +76,7 @@ namespace UninstallerPro
                 {
                     Logger.Log("Critical error (UI): " + e.Exception);
                     MessageBox.Show(I18n.T("app_name") + ":\n" + e.Exception.Message + "\n\n" + AppPaths.LogFile,
-                        I18n.T("generic_error_title"), MessageBoxButton.OK, MessageBoxImage.Error);
+                        I18n.T("generic_error_title"), MessageBoxButton.OK, MessageBoxImage.Error, MessageBoxResult.OK, Dialogs.RtlOptions());
                     e.Handled = true;
                 };
                 AppDomain.CurrentDomain.UnhandledException += (s, e) =>
@@ -84,7 +84,7 @@ namespace UninstallerPro
                     var ex = e.ExceptionObject as Exception;
                     Logger.Log("Critical error (unhandled): " + (ex != null ? ex.ToString() : e.ExceptionObject));
                     MessageBox.Show(I18n.T("app_name") + ":\n" + (ex != null ? ex.Message : "") + "\n\n" + AppPaths.LogFile,
-                        I18n.T("generic_error_title"), MessageBoxButton.OK, MessageBoxImage.Error);
+                        I18n.T("generic_error_title"), MessageBoxButton.OK, MessageBoxImage.Error, MessageBoxResult.OK, Dialogs.RtlOptions());
                 };
 
                 try
@@ -114,7 +114,7 @@ namespace UninstallerPro
                             catch (Exception ex)
                             {
                                 Logger.Log("Critical startup error: " + ex);
-                                MessageBox.Show(I18n.T("app_name") + ":\n" + ex.Message, I18n.T("generic_error_title"), MessageBoxButton.OK, MessageBoxImage.Error);
+                                MessageBox.Show(I18n.T("app_name") + ":\n" + ex.Message, I18n.T("generic_error_title"), MessageBoxButton.OK, MessageBoxImage.Error, MessageBoxResult.OK, Dialogs.RtlOptions());
                                 splash.Close();
                                 app.Shutdown();
                             }
@@ -126,7 +126,7 @@ namespace UninstallerPro
                 catch (Exception ex)
                 {
                     Logger.Log("Critical startup error: " + ex);
-                    MessageBox.Show(I18n.T("app_name") + ":\n" + ex.Message, I18n.T("generic_error_title"), MessageBoxButton.OK, MessageBoxImage.Error);
+                    MessageBox.Show(I18n.T("app_name") + ":\n" + ex.Message, I18n.T("generic_error_title"), MessageBoxButton.OK, MessageBoxImage.Error, MessageBoxResult.OK, Dialogs.RtlOptions());
                 }
                 return 0;
             }
@@ -159,7 +159,7 @@ namespace UninstallerPro
                     var result = MessageBox.Show(
                         I18n.T("uninstall_delete_data_msg"),
                         I18n.T("uninstall_delete_data_title"),
-                        MessageBoxButton.YesNo, MessageBoxImage.Question, MessageBoxResult.No);
+                        MessageBoxButton.YesNo, MessageBoxImage.Question, MessageBoxResult.No, Dialogs.RtlOptions());
                     if (result == MessageBoxResult.Yes)
                     {
                         try { Directory.Delete(AppPaths.DataDir, true); } catch { }

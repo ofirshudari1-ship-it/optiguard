@@ -32,20 +32,34 @@ namespace UninstallerPro
 
     public static class Dialogs
     {
+        // The native Win32 MessageBox does NOT inherit WPF's Window.FlowDirection
+        // (it's a separate OS-drawn window, not part of our visual tree), so
+        // without this it always renders left-to-right/left-aligned even when
+        // the app is running in Hebrew - text reads the wrong way and the
+        // icon/button layout doesn't match a real Windows RTL dialog. Every
+        // MessageBox.Show call in the app must pass this (section 18.1).
+        public static MessageBoxOptions RtlOptions()
+        {
+            return I18n.IsRtl ? (MessageBoxOptions.RtlReading | MessageBoxOptions.RightAlign) : MessageBoxOptions.None;
+        }
+
         public static void ShowError(string title, string message)
         {
             Logger.Log("Error: " + title + " - " + message);
-            MessageBox.Show(message, string.IsNullOrEmpty(title) ? I18n.T("generic_error_title") : title, MessageBoxButton.OK, MessageBoxImage.Error);
+            MessageBox.Show(message, string.IsNullOrEmpty(title) ? I18n.T("generic_error_title") : title,
+                MessageBoxButton.OK, MessageBoxImage.Error, MessageBoxResult.OK, RtlOptions());
         }
 
         public static bool Confirm(string title, string message)
         {
-            return MessageBox.Show(message, title, MessageBoxButton.YesNo, MessageBoxImage.Warning) == MessageBoxResult.Yes;
+            return MessageBox.Show(message, title, MessageBoxButton.YesNo, MessageBoxImage.Warning,
+                MessageBoxResult.No, RtlOptions()) == MessageBoxResult.Yes;
         }
 
         public static void Info(string title, string message)
         {
-            MessageBox.Show(message, string.IsNullOrEmpty(title) ? I18n.T("generic_done_title") : title, MessageBoxButton.OK, MessageBoxImage.Information);
+            MessageBox.Show(message, string.IsNullOrEmpty(title) ? I18n.T("generic_done_title") : title,
+                MessageBoxButton.OK, MessageBoxImage.Information, MessageBoxResult.OK, RtlOptions());
         }
 
         // Small modeless window showing real download progress for the
@@ -87,6 +101,11 @@ namespace UninstallerPro
                 w.Icon = System.Windows.Interop.Imaging.CreateBitmapSourceFromHIcon(exeIcon.Handle, Int32Rect.Empty, System.Windows.Media.Imaging.BitmapSizeOptions.FromEmptyOptions());
             }
             catch { }
+
+            // Every dialog must be dismissible with Esc alone (section 18.2) -
+            // wired centrally here so it applies to all StyledDialog windows
+            // without each call site having to remember it.
+            w.KeyDown += (s, e) => { if (e.Key == Key.Escape) { try { w.Close(); } catch { } } };
             return w;
         }
 
