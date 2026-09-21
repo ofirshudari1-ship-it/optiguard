@@ -45,4 +45,17 @@
     </Content>
   </ItemGroup>
 
+  <!--
+    Embedded WPF resource (distinct from <ApplicationIcon> above, which only
+    controls the .exe/taskbar icon). SplashWindow.cs loads this via a
+    pack://application:,,, URI so the splash screen shows the real logo
+    large and centered, per STANDARDS.md §19.1 - not a placeholder or a
+    small icon.
+  -->
+  <ItemGroup>
+    <Resource Include="..\AppIcon.ico">
+      <Link>AppIcon.ico</Link>
+    </Resource>
+  </ItemGroup>
+
 </Project>

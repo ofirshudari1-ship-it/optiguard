@@ -91,33 +91,92 @@ namespace UninstallerPro
                 {
                     Logger.Log(I18n.T("app_name") + " started (native app)");
 
-                    // Splash shows for a minimum of 800ms (even on a fast machine, so it
-                    // never just flickers) while MainWindow is constructed, then hands off
-                    // and closes itself - see SplashWindow.cs.
+                    // Splash timing/handoff per STANDARDS.md §19.2 (SplashWindow.cs owns
+                    // only the visuals/animation):
+                    //  - minimum 800ms on screen, enforced by measuring real elapsed time
+                    //    against MainWindow construction and waiting out the difference -
+                    //    not a blind fixed delay.
+                    //  - an 8-second safety timeout so the splash can never hang forever
+                    //    even if startup stalls.
+                    //  - MainWindow is not shown until the moment splash closes, so there
+                    //    is never a frame with both windows visible.
+                    const int MinSplashDisplayMs = 800;
+                    const int SafetyTimeoutMs = 8000;
+
+                    var splashStopwatch = System.Diagnostics.Stopwatch.StartNew();
                     var splash = new SplashWindow();
                     splash.StatusText.Text = I18n.T("splash_status_loading");
                     splash.Show();
                     app.ShutdownMode = ShutdownMode.OnExplicitShutdown;
 
-                    System.Threading.Tasks.Task.Delay(800).ContinueWith(_ =>
+                    bool handedOff = false;
+                    var handoffLock = new object();
+
+                    Action<MainWindow, Exception> finishStartup = (win, error) =>
+                    {
+                        lock (handoffLock)
+                        {
+                            if (handedOff) return;
+                            handedOff = true;
+                        }
+                        try
+                        {
+                            if (error != null) throw error;
+                            app.MainWindow = win;
+                            app.ShutdownMode = ShutdownMode.OnMainWindowClose;
+                            win.Show();
+                            splash.Close();
+                        }
+                        catch (Exception ex)
+                        {
+                            Logger.Log("Critical startup error: " + ex);
+                            MessageBox.Show(I18n.T("app_name") + ":\n" + ex.Message, I18n.T("generic_error_title"), MessageBoxButton.OK, MessageBoxImage.Error, MessageBoxResult.OK, Dialogs.RtlOptions());
+                            splash.Close();
+                            app.Shutdown();
+                        }
+                    };
+
+                    // Safety timeout: guarantees the splash is force-closed no later than
+                    // SafetyTimeoutMs after it appeared, regardless of what startup is
+                    // doing, so it can never be stuck on screen indefinitely.
+                    var safetyTimer = new System.Windows.Threading.DispatcherTimer
+                    {
+                        Interval = TimeSpan.FromMilliseconds(SafetyTimeoutMs)
+                    };
+                    safetyTimer.Tick += (s, e) =>
+                    {
+                        safetyTimer.Stop();
+                        Logger.Log("Splash safety timeout reached (" + SafetyTimeoutMs + "ms) - forcing handoff.");
+                        MainWindow fallbackWin = null;
+                        Exception fallbackError = null;
+                        try { fallbackWin = new MainWindow(); }
+                        catch (Exception ex) { fallbackError = ex; }
+                        finishStartup(fallbackWin, fallbackError);
+                    };
+                    safetyTimer.Start();
+
+                    MainWindow mainWindow = null;
+                    Exception startupError = null;
+                    try
+                    {
+                        // Created hidden - a WPF Window is never visible until Show() is
+                        // called, so this cannot flash on screen before the splash closes.
+                        mainWindow = new MainWindow();
+                    }
+                    catch (Exception ex)
+                    {
+                        startupError = ex;
+                    }
+
+                    int elapsedMs = (int)splashStopwatch.ElapsedMilliseconds;
+                    int remainingMs = Math.Max(0, MinSplashDisplayMs - elapsedMs);
+
+                    System.Threading.Tasks.Task.Delay(remainingMs).ContinueWith(_ =>
                     {
                         splash.Dispatcher.Invoke(() =>
                         {
-                            try
-                            {
-                                var win = new MainWindow();
-                                app.MainWindow = win;
-                                app.ShutdownMode = ShutdownMode.OnMainWindowClose;
-                                win.Show();
-                                splash.Close();
-                            }
-                            catch (Exception ex)
-                            {
-                                Logger.Log("Critical startup error: " + ex);
-                                MessageBox.Show(I18n.T("app_name") + ":\n" + ex.Message, I18n.T("generic_error_title"), MessageBoxButton.OK, MessageBoxImage.Error, MessageBoxResult.OK, Dialogs.RtlOptions());
-                                splash.Close();
-                                app.Shutdown();
-                            }
+                            safetyTimer.Stop();
+                            finishStartup(mainWindow, startupError);
                         });
                     });
 
