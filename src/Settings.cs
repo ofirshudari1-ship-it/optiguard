@@ -63,6 +63,16 @@ namespace UninstallerPro
         public double WindowTop = -1;
         public bool WindowMaximized = false;
 
+        // Persistent desktop widget (added 4.14.0, see WidgetWindow.cs) - a
+        // small always-on-top panel showing the Health Score with quick
+        // actions, kept separate from the main window. Default ON: the user
+        // explicitly wants it always visible without having to open it first.
+        public bool ShowDesktopWidget = true;
+        // -1 sentinel = never saved yet -> WidgetWindow falls back to its
+        // default bottom-right corner position, same pattern as WindowLeft/Top.
+        public double WidgetLeft = -1;
+        public double WidgetTop = -1;
+
         public static AppSettings Load()
         {
             try
@@ -91,6 +101,9 @@ namespace UninstallerPro
                     if (dict.ContainsKey("WindowLeft") && dict["WindowLeft"] != null) s.WindowLeft = Convert.ToDouble(dict["WindowLeft"]);
                     if (dict.ContainsKey("WindowTop") && dict["WindowTop"] != null) s.WindowTop = Convert.ToDouble(dict["WindowTop"]);
                     if (dict.ContainsKey("WindowMaximized") && dict["WindowMaximized"] != null) s.WindowMaximized = Convert.ToBoolean(dict["WindowMaximized"]);
+                    if (dict.ContainsKey("ShowDesktopWidget") && dict["ShowDesktopWidget"] != null) s.ShowDesktopWidget = Convert.ToBoolean(dict["ShowDesktopWidget"]);
+                    if (dict.ContainsKey("WidgetLeft") && dict["WidgetLeft"] != null) s.WidgetLeft = Convert.ToDouble(dict["WidgetLeft"]);
+                    if (dict.ContainsKey("WidgetTop") && dict["WidgetTop"] != null) s.WidgetTop = Convert.ToDouble(dict["WidgetTop"]);
                     return s;
                 }
             }
@@ -109,7 +122,8 @@ namespace UninstallerPro
                     { "Theme", Theme }, { "ShowSystemComponents", ShowSystemComponents }, { "Language", Language }, { "UpdateManifestUrl", UpdateManifestUrl }, { "CreateRestorePoints", CreateRestorePoints }, { "FirstLaunchCompleted", FirstLaunchCompleted }, { "EnableNotifications", EnableNotifications }, { "AutoCheckUpdates", AutoCheckUpdates }, { "AutoInstallUpdates", AutoInstallUpdates }, { "QuarantineRetentionDays", QuarantineRetentionDays },
                     { "ScheduledCleanupEnabled", ScheduledCleanupEnabled }, { "ScheduledCleanupFrequency", ScheduledCleanupFrequency },
                     { "ScheduledCleanupCategories", ScheduledCleanupCategories }, { "ScheduledCleanupMaxSizeMB", ScheduledCleanupMaxSizeMB },
-                    { "WindowWidth", WindowWidth }, { "WindowHeight", WindowHeight }, { "WindowLeft", WindowLeft }, { "WindowTop", WindowTop }, { "WindowMaximized", WindowMaximized }
+                    { "WindowWidth", WindowWidth }, { "WindowHeight", WindowHeight }, { "WindowLeft", WindowLeft }, { "WindowTop", WindowTop }, { "WindowMaximized", WindowMaximized },
+                    { "ShowDesktopWidget", ShowDesktopWidget }, { "WidgetLeft", WidgetLeft }, { "WidgetTop", WidgetTop }
                 }));
             }
             catch { }

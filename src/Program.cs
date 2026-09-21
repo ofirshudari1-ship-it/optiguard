@@ -126,6 +126,15 @@ namespace UninstallerPro
                             app.ShutdownMode = ShutdownMode.OnMainWindowClose;
                             win.Show();
                             splash.Close();
+
+                            // Persistent desktop widget (WidgetWindow.cs) - launches
+                            // alongside the main window when enabled (default ON),
+                            // per the "always visible" requirement. Uses the main
+                            // window's already-loaded settings instance so a toggle
+                            // in Settings and the widget's own hide button stay in
+                            // sync without re-reading settings.json.
+                            try { if (win.Settings.ShowDesktopWidget) WidgetWindow.OpenOrShow(win.Settings); }
+                            catch (Exception ex) { Logger.Log("Desktop widget startup failed: " + ex.Message); }
                         }
                         catch (Exception ex)
                         {

@@ -37,6 +37,10 @@ namespace UninstallerPro
     public class MainWindow : Window
     {
         private AppSettings _settings;
+        // Exposed so Program.cs can open the desktop widget (WidgetWindow.cs)
+        // against the same settings instance the main window already loaded,
+        // instead of re-reading settings.json a second time.
+        public AppSettings Settings { get { return _settings; } }
 
         // Guards the background update check so it runs at most once per
         // process lifetime, even if the main window were ever rebuilt.
@@ -869,6 +873,9 @@ namespace UninstallerPro
                     render(result);
                     btnRefreshScore.IsEnabled = true;
                     isComputing = false;
+                    // Keep the desktop widget's score in sync immediately
+                    // rather than waiting for its own periodic timer.
+                    WidgetWindow.RefreshIfOpen();
                 });
             };
             btnRefreshScore.Click += (s, e) => refreshScore();
@@ -2650,6 +2657,12 @@ namespace UninstallerPro
             chkNotifications.IsChecked = _settings.EnableNotifications;
             panel.Children.Add(chkNotifications);
 
+            panel.Children.Add(SectionLabel(I18n.T("section_widget")));
+            var chkShowWidget = new CheckBox { Content = I18n.T("show_desktop_widget"), Style = (Style)Theme.GetStyle("CardCheckBoxStyle"), Margin = new Thickness(0,0,0,4) };
+            chkShowWidget.IsChecked = _settings.ShowDesktopWidget;
+            panel.Children.Add(chkShowWidget);
+            panel.Children.Add(new TextBlock { Text = I18n.T("show_desktop_widget_desc"), Foreground = Theme.Get("TextMutedBrush"), TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0,0,0,20) });
+
             panel.Children.Add(SectionLabel(I18n.T("section_about")));
             panel.Children.Add(new TextBlock
             {
@@ -2713,6 +2726,10 @@ namespace UninstallerPro
                 _settings.AutoInstallUpdates = chkAutoInstallUpdates.IsChecked == true;
                 _settings.EnableNotifications = chkNotifications.IsChecked == true;
                 RestorePoint.Enabled = _settings.CreateRestorePoints;
+
+                _settings.ShowDesktopWidget = chkShowWidget.IsChecked == true;
+                if (_settings.ShowDesktopWidget) WidgetWindow.OpenOrShow(_settings);
+                else WidgetWindow.CloseIfOpen();
 
                 var scheduledCleanupWasEnabled = _settings.ScheduledCleanupEnabled;
                 var scheduledCleanupWasFrequency = _settings.ScheduledCleanupFrequency;
