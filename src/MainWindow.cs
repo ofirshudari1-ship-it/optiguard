@@ -598,9 +598,17 @@ namespace UninstallerPro
             return new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = I18n.IsRtl ? HorizontalAlignment.Right : HorizontalAlignment.Left, Margin = new Thickness(14,8,14,14) };
         }
 
+        // MinWidth, not Width: the button styles don't wrap or trim their text
+        // (BaseButtonStyle's ContentPresenter has no TextWrapping/TextTrimming,
+        // and a WPF Border with CornerRadius does not auto-clip its child on
+        // .NET Framework), so a fixed Width sized for the English caption would
+        // let a longer Hebrew (or just longer-than-expected) translation spill
+        // text outside the button's rounded rectangle instead of growing to fit.
+        // MinWidth keeps every button at its tuned width by default and only
+        // grows it when the actual rendered caption needs more room.
         private static Button MakeButton(string text, string styleKey, double width)
         {
-            return new Button { Content = text, Style = (Style)Theme.GetStyle(styleKey), Width = width, Margin = new Thickness(0,0,6,0) };
+            return new Button { Content = text, Style = (Style)Theme.GetStyle(styleKey), MinWidth = width, Margin = new Thickness(0,0,6,0) };
         }
 
         // מאחד כמה כפתורים משניים לכפתור "עוד" אחד עם תפריט נפתח - מצמצם עומס
@@ -964,7 +972,13 @@ namespace UninstallerPro
         {
             var dock = new DockPanel { Background = Theme.Get("BgBrush") };
 
-            var top = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(14,10,14,6) };
+            // WrapPanel, not a plain horizontal StackPanel: at the window's own
+            // declared MinWidth (960) this toolbar's controls (label+box+checkbox+
+            // label+combo+button+status on the Programs tab) don't all fit on one
+            // line. A non-wrapping StackPanel would render the trailing controls
+            // (Refresh, the status count) past the visible window edge instead of
+            // reflowing them - WrapPanel drops them to a second line instead.
+            var top = new WrapPanel { Margin = new Thickness(14,10,14,6) };
             DockPanel.SetDock(top, Dock.Top);
             top.Children.Add(new TextBlock { Text = I18n.T("search_label"), VerticalAlignment = VerticalAlignment.Center, Foreground = Theme.Get("TextBrush"), Margin = new Thickness(0,0,8,0) });
             _txtSearch = new TextBox { Width = 220, Height = 28, VerticalContentAlignment = VerticalAlignment.Center };
@@ -1201,7 +1215,13 @@ namespace UninstallerPro
         {
             var dock = new DockPanel { Background = Theme.Get("BgBrush") };
 
-            var top = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(14,10,14,6) };
+            // WrapPanel, not a plain horizontal StackPanel: at the window's own
+            // declared MinWidth (960) this toolbar's controls (label+box+checkbox+
+            // label+combo+button+status on the Programs tab) don't all fit on one
+            // line. A non-wrapping StackPanel would render the trailing controls
+            // (Refresh, the status count) past the visible window edge instead of
+            // reflowing them - WrapPanel drops them to a second line instead.
+            var top = new WrapPanel { Margin = new Thickness(14,10,14,6) };
             DockPanel.SetDock(top, Dock.Top);
             top.Children.Add(new TextBlock { Text = I18n.T("col_platform") + ":", VerticalAlignment = VerticalAlignment.Center, Foreground = Theme.Get("TextBrush"), Margin = new Thickness(0,0,8,0) });
             _cmbGamePlatform = new ComboBox { Width = 200, Height = 28 };
@@ -1275,7 +1295,13 @@ namespace UninstallerPro
         {
             var dock = new DockPanel { Background = Theme.Get("BgBrush") };
 
-            var top = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(14,10,14,6) };
+            // WrapPanel, not a plain horizontal StackPanel: at the window's own
+            // declared MinWidth (960) this toolbar's controls (label+box+checkbox+
+            // label+combo+button+status on the Programs tab) don't all fit on one
+            // line. A non-wrapping StackPanel would render the trailing controls
+            // (Refresh, the status count) past the visible window edge instead of
+            // reflowing them - WrapPanel drops them to a second line instead.
+            var top = new WrapPanel { Margin = new Thickness(14,10,14,6) };
             DockPanel.SetDock(top, Dock.Top);
             top.Children.Add(new TextBlock { Text = I18n.T("col_browser") + ":", VerticalAlignment = VerticalAlignment.Center, Foreground = Theme.Get("TextBrush"), Margin = new Thickness(0,0,8,0) });
             _cmbExtBrowser = new ComboBox { Width = 180, Height = 28 };
@@ -1332,7 +1358,13 @@ namespace UninstallerPro
         {
             var dock = new DockPanel { Background = Theme.Get("BgBrush") };
 
-            var top = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(14,10,14,6) };
+            // WrapPanel, not a plain horizontal StackPanel: at the window's own
+            // declared MinWidth (960) this toolbar's controls (label+box+checkbox+
+            // label+combo+button+status on the Programs tab) don't all fit on one
+            // line. A non-wrapping StackPanel would render the trailing controls
+            // (Refresh, the status count) past the visible window edge instead of
+            // reflowing them - WrapPanel drops them to a second line instead.
+            var top = new WrapPanel { Margin = new Thickness(14,10,14,6) };
             DockPanel.SetDock(top, Dock.Top);
             top.Children.Add(new TextBlock { Text = I18n.T("col_status") + ":", VerticalAlignment = VerticalAlignment.Center, Foreground = Theme.Get("TextBrush"), Margin = new Thickness(0,0,8,0) });
             _cmbStartupStatus = new ComboBox { Width = 160, Height = 28 };
@@ -1576,7 +1608,7 @@ namespace UninstallerPro
             DockPanel.SetDock(intro, Dock.Top);
             dock.Children.Add(intro);
 
-            var top = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(14,0,14,6) };
+            var top = new WrapPanel { Margin = new Thickness(14,0,14,6) };
             DockPanel.SetDock(top, Dock.Top);
             _cmbSpaceDrive = new ComboBox { Width = 100, Height = 28 };
             foreach (var d in DriveInfo.GetDrives().Where(d => d.IsReady)) _cmbSpaceDrive.Items.Add(d.Name);
@@ -1662,7 +1694,7 @@ namespace UninstallerPro
             DockPanel.SetDock(intro, Dock.Top);
             dock.Children.Add(intro);
 
-            var top = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(14,0,14,6) };
+            var top = new WrapPanel { Margin = new Thickness(14,0,14,6) };
             DockPanel.SetDock(top, Dock.Top);
             top.Children.Add(new TextBlock { Text = I18n.T("dup_folder_label"), VerticalAlignment = VerticalAlignment.Center, Foreground = Theme.Get("TextBrush"), Margin = new Thickness(0,0,8,0) });
             _txtDupFolder = new TextBox { Width = 400, Height = 28, Text = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), VerticalContentAlignment = VerticalAlignment.Center };

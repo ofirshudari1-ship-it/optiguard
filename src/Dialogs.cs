@@ -100,12 +100,12 @@ namespace UninstallerPro
             var bottom = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = I18n.IsRtl ? HorizontalAlignment.Right : HorizontalAlignment.Left, Margin = new Thickness(14,0,14,14) };
             DockPanel.SetDock(bottom, Dock.Bottom);
 
-            var btnAll = new Button { Content = I18n.T("btn_select_all"), Style = (Style)Theme.GetStyle("GhostButtonStyle"), Width = 110, Margin = new Thickness(0,0,6,0) };
+            var btnAll = new Button { Content = I18n.T("btn_select_all"), Style = (Style)Theme.GetStyle("GhostButtonStyle"), MinWidth = 110, Margin = new Thickness(0,0,6,0) };
             btnAll.Click += (s, e) => { foreach (var c in checkable) c.IsChecked = true; };
-            var btnNone = new Button { Content = I18n.T("btn_deselect_all"), Style = (Style)Theme.GetStyle("GhostButtonStyle"), Width = 110, Margin = new Thickness(0,0,6,0) };
+            var btnNone = new Button { Content = I18n.T("btn_deselect_all"), Style = (Style)Theme.GetStyle("GhostButtonStyle"), MinWidth = 110, Margin = new Thickness(0,0,6,0) };
             btnNone.Click += (s, e) => { foreach (var c in checkable) c.IsChecked = false; };
-            var btnDelete = new Button { Content = I18n.T("btn_delete_selected"), Style = (Style)Theme.GetStyle("DangerButtonStyle"), Width = 140, Margin = new Thickness(0,0,6,0) };
-            var btnClose = new Button { Content = I18n.T("btn_close"), Style = (Style)Theme.GetStyle("GhostButtonStyle"), Width = 100 };
+            var btnDelete = new Button { Content = I18n.T("btn_delete_selected"), Style = (Style)Theme.GetStyle("DangerButtonStyle"), MinWidth = 140, Margin = new Thickness(0,0,6,0) };
+            var btnClose = new Button { Content = I18n.T("btn_close"), Style = (Style)Theme.GetStyle("GhostButtonStyle"), MinWidth = 100 };
             btnDelete.Click += async (s, e) =>
             {
                 var chosen = checkable.Where(c => c.IsChecked).ToList();
@@ -180,7 +180,7 @@ namespace UninstallerPro
             var txtPub = new TextBox { Height = 28, FontSize = 13 };
             panel.Children.Add(txtPub);
 
-            var btnScan = new Button { Content = I18n.T("btn_scan"), Style = (Style)Theme.GetStyle("AccentButtonStyle"), Width = 140, HorizontalAlignment = HorizontalAlignment.Left, Margin = new Thickness(0,20,0,0) };
+            var btnScan = new Button { Content = I18n.T("btn_scan"), Style = (Style)Theme.GetStyle("AccentButtonStyle"), MinWidth = 140, HorizontalAlignment = HorizontalAlignment.Left, Margin = new Thickness(0,20,0,0) };
             btnScan.Click += async (s, e) =>
             {
                 if (string.IsNullOrWhiteSpace(txtName.Text)) { Info("", I18n.T("hunter_enter_name")); return; }
@@ -308,12 +308,12 @@ namespace UninstallerPro
             var bottom = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = I18n.IsRtl ? HorizontalAlignment.Right : HorizontalAlignment.Left, Margin = new Thickness(14,0,14,14) };
             DockPanel.SetDock(bottom, Dock.Bottom);
 
-            var btnAll = new Button { Content = I18n.T("btn_select_all"), Style = (Style)Theme.GetStyle("GhostButtonStyle"), Width = 110, Margin = new Thickness(0,0,6,0) };
+            var btnAll = new Button { Content = I18n.T("btn_select_all"), Style = (Style)Theme.GetStyle("GhostButtonStyle"), MinWidth = 110, Margin = new Thickness(0,0,6,0) };
             btnAll.Click += (s, e) => { foreach (var c in checkable) c.IsChecked = true; };
-            var btnNone = new Button { Content = I18n.T("btn_deselect_all"), Style = (Style)Theme.GetStyle("GhostButtonStyle"), Width = 110, Margin = new Thickness(0,0,6,0) };
+            var btnNone = new Button { Content = I18n.T("btn_deselect_all"), Style = (Style)Theme.GetStyle("GhostButtonStyle"), MinWidth = 110, Margin = new Thickness(0,0,6,0) };
             btnNone.Click += (s, e) => { foreach (var c in checkable) c.IsChecked = false; };
-            var btnClean = new Button { Content = I18n.T("btn_clean_selected"), Style = (Style)Theme.GetStyle("DangerButtonStyle"), Width = 150, Margin = new Thickness(0,0,6,0) };
-            var btnClose = new Button { Content = I18n.T("btn_close"), Style = (Style)Theme.GetStyle("GhostButtonStyle"), Width = 100 };
+            var btnClean = new Button { Content = I18n.T("btn_clean_selected"), Style = (Style)Theme.GetStyle("DangerButtonStyle"), MinWidth = 150, Margin = new Thickness(0,0,6,0) };
+            var btnClose = new Button { Content = I18n.T("btn_close"), Style = (Style)Theme.GetStyle("GhostButtonStyle"), MinWidth = 100 };
             btnClean.Click += async (s, e) =>
             {
                 var chosen = checkable.Where(c => c.IsChecked).Select(c => c.Finding).ToList();
@@ -376,14 +376,14 @@ namespace UninstallerPro
             panel.Children.Add(txt);
 
             var bottom = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = I18n.IsRtl ? HorizontalAlignment.Right : HorizontalAlignment.Left, Margin = new Thickness(0,16,0,0) };
-            var btnOk = new Button { Content = I18n.T("btn_save_fingerprint"), Style = (Style)Theme.GetStyle("AccentButtonStyle"), Width = 110, Margin = new Thickness(0,0,6,0) };
+            var btnOk = new Button { Content = I18n.T("btn_save_fingerprint"), Style = (Style)Theme.GetStyle("AccentButtonStyle"), MinWidth = 110, Margin = new Thickness(0,0,6,0) };
             btnOk.Click += (s, e) =>
             {
                 if (string.IsNullOrWhiteSpace(txt.Text)) { Info("", I18n.T("monitor_enter_name")); return; }
                 result = txt.Text.Trim();
                 w.Close();
             };
-            var btnCancel = new Button { Content = I18n.T("btn_cancel"), Style = (Style)Theme.GetStyle("GhostButtonStyle"), Width = 100 };
+            var btnCancel = new Button { Content = I18n.T("btn_cancel"), Style = (Style)Theme.GetStyle("GhostButtonStyle"), MinWidth = 100 };
             btnCancel.Click += (s, e) => w.Close();
             bottom.Children.Add(btnOk);
             bottom.Children.Add(btnCancel);
@@ -402,7 +402,7 @@ namespace UninstallerPro
 
             var bottom = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = I18n.IsRtl ? HorizontalAlignment.Right : HorizontalAlignment.Left, Margin = new Thickness(14,0,14,14) };
             DockPanel.SetDock(bottom, Dock.Bottom);
-            var btnClose = new Button { Content = I18n.T("btn_close"), Style = (Style)Theme.GetStyle("GhostButtonStyle"), Width = 100 };
+            var btnClose = new Button { Content = I18n.T("btn_close"), Style = (Style)Theme.GetStyle("GhostButtonStyle"), MinWidth = 100 };
             btnClose.Click += (s, e) => w.Close();
             bottom.Children.Add(btnClose);
             dock.Children.Add(bottom);
@@ -430,8 +430,8 @@ namespace UninstallerPro
 
             var bottom = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = I18n.IsRtl ? HorizontalAlignment.Right : HorizontalAlignment.Left, Margin = new Thickness(14,0,14,14) };
             DockPanel.SetDock(bottom, Dock.Bottom);
-            var btnOpenFolder = new Button { Content = I18n.T("btn_open_containing_folder"), Style = (Style)Theme.GetStyle("GhostButtonStyle"), Width = 150, Margin = new Thickness(0,0,6,0) };
-            var btnClose = new Button { Content = I18n.T("btn_close"), Style = (Style)Theme.GetStyle("GhostButtonStyle"), Width = 100 };
+            var btnOpenFolder = new Button { Content = I18n.T("btn_open_containing_folder"), Style = (Style)Theme.GetStyle("GhostButtonStyle"), MinWidth = 150, Margin = new Thickness(0,0,6,0) };
+            var btnClose = new Button { Content = I18n.T("btn_close"), Style = (Style)Theme.GetStyle("GhostButtonStyle"), MinWidth = 100 };
             bottom.Children.Add(btnOpenFolder);
             bottom.Children.Add(btnClose);
             dock.Children.Add(bottom);
@@ -472,7 +472,7 @@ namespace UninstallerPro
 
             var bottom = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = I18n.IsRtl ? HorizontalAlignment.Right : HorizontalAlignment.Left, Margin = new Thickness(16,0,16,14) };
             DockPanel.SetDock(bottom, Dock.Bottom);
-            var btnClose = new Button { Content = I18n.T("btn_close"), Style = (Style)Theme.GetStyle("GhostButtonStyle"), Width = 100 };
+            var btnClose = new Button { Content = I18n.T("btn_close"), Style = (Style)Theme.GetStyle("GhostButtonStyle"), MinWidth = 100 };
             btnClose.Click += (s, e) => w.Close();
             bottom.Children.Add(btnClose);
             root.Children.Add(bottom);
@@ -498,7 +498,7 @@ namespace UninstallerPro
 
                     if (issue.FixButtonKey != null)
                     {
-                        var btnFix = new Button { Content = I18n.T(issue.FixButtonKey), Style = (Style)Theme.GetStyle("AccentButtonStyle"), Width = 170, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(10,0,0,0) };
+                        var btnFix = new Button { Content = I18n.T(issue.FixButtonKey), Style = (Style)Theme.GetStyle("AccentButtonStyle"), MinWidth = 170, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(10,0,0,0) };
                         DockPanel.SetDock(btnFix, I18n.IsRtl ? Dock.Left : Dock.Right);
                         var capturedIssue = issue;
                         btnFix.Click += async (s, e) =>
@@ -553,8 +553,8 @@ namespace UninstallerPro
 
             var bottom = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = I18n.IsRtl ? HorizontalAlignment.Right : HorizontalAlignment.Left, Margin = new Thickness(16,0,16,14) };
             DockPanel.SetDock(bottom, Dock.Bottom);
-            var btnApply = new Button { Content = I18n.T("btn_apply_profile"), Style = (Style)Theme.GetStyle("AccentButtonStyle"), Width = 180, Margin = new Thickness(0,0,6,0) };
-            var btnClose = new Button { Content = I18n.T("btn_close"), Style = (Style)Theme.GetStyle("GhostButtonStyle"), Width = 100 };
+            var btnApply = new Button { Content = I18n.T("btn_apply_profile"), Style = (Style)Theme.GetStyle("AccentButtonStyle"), MinWidth = 180, Margin = new Thickness(0,0,6,0) };
+            var btnClose = new Button { Content = I18n.T("btn_close"), Style = (Style)Theme.GetStyle("GhostButtonStyle"), MinWidth = 100 };
             btnClose.Click += (s, e) => w.Close();
             bottom.Children.Add(btnApply);
             bottom.Children.Add(btnClose);
