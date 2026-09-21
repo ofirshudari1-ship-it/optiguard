@@ -284,17 +284,31 @@ namespace OptiGuardSetup
 
         private void DetectExistingInstall()
         {
-            _installDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), InstallDirName);
+            List<Tuple<string, string>> legacyFound;
+            DetectExistingInstallStatic(out _installDir, out _existingVersion, out _alreadyInstalled, out legacyFound);
+            _legacyFound = legacyFound;
+        }
+
+        // Static core shared by the interactive wizard (constructor, above) and
+        // the unattended /SILENT path (RunSilentInstall, below) - neither one
+        // needs a live Form instance to figure out where OptiGuard already
+        // lives.
+        private static void DetectExistingInstallStatic(out string installDir, out string existingVersion, out bool alreadyInstalled, out List<Tuple<string, string>> legacyFound)
+        {
+            installDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), InstallDirName);
+            existingVersion = null;
+            alreadyInstalled = false;
+            legacyFound = new List<Tuple<string, string>>();
             try
             {
                 using (var key = Registry.LocalMachine.OpenSubKey(UninstallKeyPath))
                 {
                     if (key != null)
                     {
-                        _existingVersion = key.GetValue("DisplayVersion") as string;
+                        existingVersion = key.GetValue("DisplayVersion") as string;
                         var existingDir = key.GetValue("InstallLocation") as string;
-                        if (!string.IsNullOrEmpty(existingDir)) _installDir = existingDir;
-                        _alreadyInstalled = true;
+                        if (!string.IsNullOrEmpty(existingDir)) installDir = existingDir;
+                        alreadyInstalled = true;
                     }
                 }
             }
@@ -307,7 +321,7 @@ namespace OptiGuardSetup
                     var legacyKeyPath = @"SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\" + legacy.Item1;
                     using (var legacyKey = Registry.LocalMachine.OpenSubKey(legacyKeyPath))
                     {
-                        if (legacyKey != null) _legacyFound.Add(legacy);
+                        if (legacyKey != null) legacyFound.Add(legacy);
                     }
                 }
                 catch { }
@@ -316,7 +330,12 @@ namespace OptiGuardSetup
 
         private void CleanupLegacyInstall()
         {
-            foreach (var legacy in _legacyFound)
+            CleanupLegacyInstallStatic(_legacyFound, _installDir);
+        }
+
+        private static void CleanupLegacyInstallStatic(List<Tuple<string, string>> legacyFound, string installDir)
+        {
+            foreach (var legacy in legacyFound)
             {
                 try
                 {
@@ -332,7 +351,7 @@ namespace OptiGuardSetup
                     var startMenu = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.CommonPrograms), legacy.Item2);
                     if (File.Exists(startMenu)) File.Delete(startMenu);
                     Registry.LocalMachine.DeleteSubKeyTree(legacyKeyPath, false);
-                    if (!string.IsNullOrEmpty(legacyInstallDir) && Directory.Exists(legacyInstallDir) && !string.Equals(legacyInstallDir, _installDir, StringComparison.OrdinalIgnoreCase))
+                    if (!string.IsNullOrEmpty(legacyInstallDir) && Directory.Exists(legacyInstallDir) && !string.Equals(legacyInstallDir, installDir, StringComparison.OrdinalIgnoreCase))
                     {
                         try { Directory.Delete(legacyInstallDir, true); } catch { }
                     }
@@ -526,34 +545,15 @@ namespace OptiGuardSetup
             ShowPage(_pageProgress);
             try
             {
+                string error = null;
+                bool ok = false;
                 await System.Threading.Tasks.Task.Run(() =>
                 {
-                    CleanupLegacyInstall();
-
-                    Directory.CreateDirectory(_installDir);
-                    WriteResourceToFile("OptiGuardSetup.OptiGuard.exe", Path.Combine(_installDir, ExeFileName));
-
-                    var localesDir = Path.Combine(_installDir, "locales");
-                    Directory.CreateDirectory(localesDir);
-                    WriteResourceToFile("OptiGuardSetup.locales.en.json", Path.Combine(localesDir, "en.json"));
-                    WriteResourceToFile("OptiGuardSetup.locales.he.json", Path.Combine(localesDir, "he.json"));
-                    WriteResourceToFile("OptiGuardSetup.CHANGELOG.md", Path.Combine(_installDir, "CHANGELOG.md"));
-                    WriteResourceToFile("OptiGuardSetup.EULA.md", Path.Combine(_installDir, "EULA.md"));
-
-                    string exePath = Path.Combine(_installDir, ExeFileName);
-
-                    if (_chkDesktop.Checked)
-                    {
-                        CreateShortcut(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory), ShortcutFileName), exePath, _installDir);
-                    }
-                    if (_chkStartMenu.Checked)
-                    {
-                        string startMenuDir = Environment.GetFolderPath(Environment.SpecialFolder.CommonPrograms);
-                        Directory.CreateDirectory(startMenuDir);
-                        CreateShortcut(Path.Combine(startMenuDir, ShortcutFileName), exePath, _installDir);
-                    }
+                    ok = PerformInstallCore(_installDir, _chkDesktop.Checked, _chkStartMenu.Checked, _legacyFound, out error);
                 });
-                RegisterUninstall(_installDir, Path.Combine(_installDir, ExeFileName));
+                if (!ok) throw new Exception(error ?? "unknown error");
+
+                RegisterUninstallStatic(_installDir, Path.Combine(_installDir, ExeFileName), AppVersion, _selectedLanguage);
                 ShowPage(_pageFinish);
             }
             catch (Exception ex)
@@ -561,6 +561,132 @@ namespace OptiGuardSetup
                 MessageBox.Show(this, "Setup error:\n" + ex.Message, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 ShowPage(_pageWelcome);
             }
+        }
+
+        // Shared install core - copies the payload and (optionally) creates
+        // shortcuts. No UI, no Form dependency, so it works from both the
+        // wizard (via Task.Run above) and the unattended /SILENT path
+        // (RunSilentInstall, below).
+        private static bool PerformInstallCore(string installDir, bool createDesktopShortcut, bool createStartMenuShortcut, List<Tuple<string, string>> legacyFound, out string error)
+        {
+            error = null;
+            try
+            {
+                CleanupLegacyInstallStatic(legacyFound, installDir);
+
+                Directory.CreateDirectory(installDir);
+                WriteResourceToFile("OptiGuardSetup.OptiGuard.exe", Path.Combine(installDir, ExeFileName));
+
+                var localesDir = Path.Combine(installDir, "locales");
+                Directory.CreateDirectory(localesDir);
+                WriteResourceToFile("OptiGuardSetup.locales.en.json", Path.Combine(localesDir, "en.json"));
+                WriteResourceToFile("OptiGuardSetup.locales.he.json", Path.Combine(localesDir, "he.json"));
+                WriteResourceToFile("OptiGuardSetup.CHANGELOG.md", Path.Combine(installDir, "CHANGELOG.md"));
+                WriteResourceToFile("OptiGuardSetup.EULA.md", Path.Combine(installDir, "EULA.md"));
+
+                string exePath = Path.Combine(installDir, ExeFileName);
+
+                if (createDesktopShortcut)
+                {
+                    CreateShortcut(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.DesktopDirectory), ShortcutFileName), exePath, installDir);
+                }
+                if (createStartMenuShortcut)
+                {
+                    string startMenuDir = Environment.GetFolderPath(Environment.SpecialFolder.CommonPrograms);
+                    Directory.CreateDirectory(startMenuDir);
+                    CreateShortcut(Path.Combine(startMenuDir, ShortcutFileName), exePath, installDir);
+                }
+                return true;
+            }
+            catch (Exception ex)
+            {
+                error = ex.Message;
+                return false;
+            }
+        }
+
+        // --- Unattended install path (/SILENT, /VERYSILENT) -----------------
+        //
+        // Runs the exact same file-copy/registration core as the interactive
+        // wizard, with zero dialogs: no language/welcome/progress/finish
+        // pages, no MessageBox. Used both when a user runs
+        // "OptiGuard-Setup-X.Y.Z.exe /SILENT" by hand and when the running app
+        // downloads a new installer and launches it for a self-update (see
+        // UpdateChecker.DownloadAndLaunchSilentInstall). The one thing this
+        // cannot avoid is the UAC elevation prompt itself when not already
+        // elevated (Program.Main re-launches with "runas") - that is an
+        // OS-level prompt, not part of Setup's own UI, and there is no way to
+        // suppress it from user code short of running as SYSTEM.
+        //
+        // Preserves user data: does not touch the app's settings.json (see
+        // SaveAppSettings) and, on an in-place update, leaves whatever
+        // shortcuts already exist untouched rather than recreating them.
+        public static int RunSilentInstall()
+        {
+            try
+            {
+                string installDir, existingVersion;
+                bool alreadyInstalled;
+                List<Tuple<string, string>> legacyFound;
+                DetectExistingInstallStatic(out installDir, out existingVersion, out alreadyInstalled, out legacyFound);
+
+                // Best-effort, non-interactive: ask the running app to close, then
+                // force it if it doesn't, so the file copy below isn't blocked by a
+                // file lock. Never shows the retry/cancel prompt EnsureAppNotRunning
+                // uses in the interactive wizard.
+                TryCloseRunningAppSilently();
+
+                string error;
+                // Only create shortcuts for a brand-new install; an in-place
+                // update leaves the user's existing shortcuts (or lack thereof)
+                // alone instead of re-creating something they may have removed.
+                bool ok = PerformInstallCore(installDir, !alreadyInstalled, !alreadyInstalled, legacyFound, out error);
+                if (!ok)
+                {
+                    LogSilentError("Silent install failed: " + error);
+                    return 1;
+                }
+
+                RegisterUninstallStatic(installDir, Path.Combine(installDir, ExeFileName), AppVersion, null);
+                return 0;
+            }
+            catch (Exception ex)
+            {
+                LogSilentError("Silent install crashed: " + ex.Message);
+                return 1;
+            }
+        }
+
+        private static void TryCloseRunningAppSilently()
+        {
+            try
+            {
+                foreach (var proc in System.Diagnostics.Process.GetProcessesByName("OptiGuard"))
+                {
+                    try
+                    {
+                        proc.CloseMainWindow();
+                        if (!proc.WaitForExit(5000))
+                        {
+                            proc.Kill();
+                            proc.WaitForExit(3000);
+                        }
+                    }
+                    catch { }
+                    finally { proc.Dispose(); }
+                }
+            }
+            catch { }
+        }
+
+        private static void LogSilentError(string message)
+        {
+            try
+            {
+                var logPath = Path.Combine(Path.GetTempPath(), "OptiGuard-SilentInstall.log");
+                File.AppendAllText(logPath, DateTime.Now.ToString("u") + "  " + message + Environment.NewLine);
+            }
+            catch { }
         }
 
         private static void WriteResourceToFile(string resourceName, string destPath)
@@ -591,11 +717,20 @@ namespace OptiGuardSetup
 
         private void RegisterUninstall(string installDir, string exePath)
         {
+            RegisterUninstallStatic(installDir, exePath, AppVersion, _selectedLanguage);
+        }
+
+        // language == null means "unattended update, unknown selection" -
+        // SaveAppSettings below only uses it for a brand-new settings.json,
+        // and never overwrites one that already exists, so this is safe for
+        // both interactive and silent callers.
+        private static void RegisterUninstallStatic(string installDir, string exePath, string version, string language)
+        {
             using (var key = Registry.LocalMachine.CreateSubKey(UninstallKeyPath))
             {
                 key.SetValue("DisplayName", SetupForm.AppName);
                 key.SetValue("Publisher", "Ofir Shudari");
-                key.SetValue("DisplayVersion", SetupForm.AppVersion);
+                key.SetValue("DisplayVersion", version);
                 key.SetValue("InstallLocation", installDir);
                 key.SetValue("DisplayIcon", exePath);
                 key.SetValue("UninstallString", "\"" + exePath + "\" --self-uninstall");
@@ -603,16 +738,21 @@ namespace OptiGuardSetup
                 key.SetValue("NoRepair", 1, RegistryValueKind.DWord);
                 key.SetValue("EstimatedSize", 1024, RegistryValueKind.DWord);
             }
-            SaveAppSettings(_selectedLanguage);
+            SaveAppSettings(language);
         }
 
-        private void SaveAppSettings(string language)
+        // Only ever creates settings.json when one doesn't exist yet (fresh
+        // install). An update - interactive or silent - must never clobber the
+        // user's saved Theme/Language/notification/etc. preferences, so an
+        // existing file is left completely untouched here.
+        private static void SaveAppSettings(string language)
         {
             try
             {
                 var appDataPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "UninstallerPro");
                 Directory.CreateDirectory(appDataPath);
                 var settingsPath = Path.Combine(appDataPath, "settings.json");
+                if (File.Exists(settingsPath)) return;
                 var langCode = language == "he" ? "HE" : "EN";
                 var settings = @"{""Theme"":""Light"",""Language"":""" + langCode + @""",""ShowSystemComponents"":false,""UpdateManifestUrl"":"""",""CreateRestorePoints"":true,""FirstLaunchCompleted"":false,""EnableNotifications"":true,""AutoCheckUpdates"":false,""QuarantineRetentionDays"":7}";
                 File.WriteAllText(settingsPath, settings);
@@ -623,15 +763,57 @@ namespace OptiGuardSetup
 
     static class Program
     {
+        // /SILENT and /VERYSILENT are treated identically: OptiGuard's setup
+        // only ever has one screen's worth of choices (shortcuts), so there is
+        // no separate "silent but still show a progress bar" tier to offer -
+        // both switches mean "install with zero UI and exit with a code".
+        private static bool IsSilentArg(string arg)
+        {
+            return string.Equals(arg, "/SILENT", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(arg, "/VERYSILENT", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(arg, "-SILENT", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(arg, "-VERYSILENT", StringComparison.OrdinalIgnoreCase);
+        }
+
         [STAThread]
         static void Main()
         {
+            var args = Environment.GetCommandLineArgs().Skip(1).ToArray();
+            bool silent = args.Any(IsSilentArg);
+
             if (!IsAdmin())
             {
+                // Must still elevate - OptiGuard installs into Program Files and
+                // writes HKLM - but nothing beyond the single unavoidable UAC
+                // prompt should require interaction in silent mode. Passing the
+                // /SILENT switch through to the elevated relaunch is what makes
+                // that relaunch skip its own wizard UI in turn.
                 var psi = new System.Diagnostics.ProcessStartInfo(Application.ExecutablePath) { Verb = "runas" };
-                try { System.Diagnostics.Process.Start(psi); } catch { }
+                psi.Arguments = string.Join(" ", args.Select(a => "\"" + a.Replace("\"", "\\\"") + "\""));
+                try
+                {
+                    var proc = System.Diagnostics.Process.Start(psi);
+                    if (silent && proc != null)
+                    {
+                        proc.WaitForExit();
+                        Environment.ExitCode = proc.ExitCode;
+                    }
+                }
+                catch
+                {
+                    // User declined the UAC prompt, or elevation otherwise
+                    // failed - there is nothing else silent mode can do here.
+                    if (silent) Environment.ExitCode = 1;
+                }
                 return;
             }
+
+            if (silent)
+            {
+                Environment.ExitCode = SetupForm.RunSilentInstall();
+                return;
+            }
+
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
             Application.Run(new SetupForm());

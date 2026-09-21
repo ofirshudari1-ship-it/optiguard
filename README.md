@@ -33,7 +33,7 @@ Most "PC cleaner" tools scare you into upgrading by claiming to find thousands o
 
 ## Automatic updates
 
-OptiGuard checks for new versions automatically and shows a simple, dismissible banner when one is available — no forced installs, no interrupting your work. You can always grab the newest release yourself from the [Releases page](https://github.com/ofirshudari1-ship-it/optiguard/releases).
+OptiGuard checks for new versions automatically and shows a simple, dismissible banner when one is available — no interrupting your work. From there, one click ("Update Now", in the banner or in Settings) downloads and installs the new version silently in the background and restarts nothing you didn't ask for — no manual download, no clicking through an installer wizard. If you'd rather it happen with zero clicks, turn on "Automatically download and install updates" in Settings (off by default). You can always grab the newest release yourself from the [Releases page](https://github.com/ofirshudari1-ship-it/optiguard/releases) too.
 
 ## Privacy
 

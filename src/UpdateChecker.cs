@@ -1,22 +1,39 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.IO;
 using System.Net;
 using System.Web.Script.Serialization;
 
 namespace UninstallerPro
 {
+    // The installer .exe attached to a GitHub Release, as needed for a
+    // one-click/self-update download - separate from ReleaseUrl (the human-
+    // readable release page) on UpdateInfo below.
+    public class UpdateAsset
+    {
+        public string Name;
+        public string DownloadUrl;
+        public long Size;
+    }
+
     public class UpdateInfo
     {
         public bool Available;
         public string LatestVersion;
         // Where to send the user to get the new version - the GitHub Release
-        // page itself (html_url), never a direct .exe download we run
-        // unattended. The user always sees the release notes before they
-        // install anything.
+        // page itself (html_url). Always the fallback path: if a one-click
+        // silent update fails for any reason, this is what the caller shows
+        // instead so the user is never left with no path forward.
         public string ReleaseUrl;
         public string Notes;
         public string Error;
+        // The "OptiGuard-Setup-X.Y.Z.exe" release asset, when one is
+        // published on the release. Null if the release has no matching
+        // asset (e.g. a release published without a build attached) - in
+        // that case a one-click update simply isn't offered and callers must
+        // fall back to ReleaseUrl.
+        public UpdateAsset Asset;
     }
 
     // Checks GitHub Releases for a newer OptiGuard version. Public repo, so
@@ -55,6 +72,7 @@ namespace UninstallerPro
                     result.ReleaseUrl = htmlUrl;
                     result.Notes = notes;
                     result.Available = !string.IsNullOrEmpty(latest) && IsNewer(latest, currentVersion);
+                    result.Asset = FindInstallerAsset(dict);
                 }
             }
             catch (Exception ex)
@@ -63,6 +81,44 @@ namespace UninstallerPro
                 Logger.Log("Update check failed: " + ex.Message);
             }
             return result;
+        }
+
+        // Picks the installer out of the release's "assets" array: the one
+        // .exe attached to the release (there is only ever exactly one -
+        // see RELEASE-CHECKLIST.md "exactly one OptiGuard-Setup-X.Y.Z.exe at
+        // the root"). Returns null (not throws) for any shape mismatch, since
+        // a missing/malformed asset list should degrade to "no one-click
+        // update available", not break the whole version check.
+        private static UpdateAsset FindInstallerAsset(Dictionary<string, object> releaseDict)
+        {
+            try
+            {
+                object assetsObj;
+                if (!releaseDict.TryGetValue("assets", out assetsObj) || assetsObj == null) return null;
+                var assets = assetsObj as System.Collections.IEnumerable;
+                if (assets == null) return null;
+
+                foreach (var item in assets)
+                {
+                    var assetDict = item as Dictionary<string, object>;
+                    if (assetDict == null) continue;
+                    var name = assetDict.ContainsKey("name") ? assetDict["name"] as string : null;
+                    if (string.IsNullOrEmpty(name) || !name.EndsWith(".exe", StringComparison.OrdinalIgnoreCase)) continue;
+
+                    var url = assetDict.ContainsKey("browser_download_url") ? assetDict["browser_download_url"] as string : null;
+                    if (string.IsNullOrEmpty(url)) continue;
+
+                    long size = 0;
+                    if (assetDict.ContainsKey("size") && assetDict["size"] != null)
+                    {
+                        try { size = Convert.ToInt64(assetDict["size"]); } catch { }
+                    }
+
+                    return new UpdateAsset { Name = name, DownloadUrl = url, Size = size };
+                }
+            }
+            catch { }
+            return null;
         }
 
         private static string StripVPrefix(string tag)
@@ -87,9 +143,12 @@ namespace UninstallerPro
         }
 
         // Opens the GitHub release page in the user's default browser so they
-        // can read the release notes and download the installer themselves -
-        // deliberately not an unattended download-and-run, so a routine
-        // update never launches an installer without the user looking at it.
+        // can read the release notes and download the installer themselves.
+        // This is the universal fallback: used directly when a user hasn't
+        // opted into one-click updates, and used by callers of
+        // DownloadAndLaunchSilentInstall whenever that fails at any step, so
+        // a failed automatic update never leaves the user stuck with no path
+        // forward.
         public static bool OpenReleasePage(string url, out string error)
         {
             error = null;
@@ -105,6 +164,133 @@ namespace UninstallerPro
                 Logger.Log("Failed to open update release page: " + ex.Message);
                 return false;
             }
+        }
+
+        // Reports 0-100 download progress. Invoked on a background thread -
+        // callers marshal to the UI thread themselves if they touch WPF
+        // elements from it.
+        public delegate void DownloadProgressHandler(int percent);
+
+        // The one-click / auto self-update path: downloads the installer
+        // asset from the GitHub release to a temp location, verifies the
+        // download completed by comparing its size against what the GitHub
+        // API reported for that asset, and launches it with /SILENT so it
+        // installs with no further UI. Does NOT exit the running app itself -
+        // the caller must do that immediately after this returns true, since
+        // Setup.exe needs to overwrite OptiGuard.exe and can't while it's
+        // still running (see TryCloseRunningAppSilently in Setup.cs, which is
+        // a second, best-effort line of defense but not a substitute for the
+        // running instance getting out of the way on its own).
+        //
+        // On any failure (network, disk, size mismatch, failed launch) this
+        // returns false with a human-readable `error` and does NOT touch the
+        // running app - callers are expected to fall back to
+        // OpenReleasePage(info.ReleaseUrl, ...) so the user still has a way
+        // to get the update by hand.
+        public static bool DownloadAndLaunchSilentInstall(UpdateInfo info, DownloadProgressHandler onProgress, out string error)
+        {
+            error = null;
+            if (info == null || info.Asset == null || string.IsNullOrEmpty(info.Asset.DownloadUrl))
+            {
+                error = "no_installer_asset";
+                return false;
+            }
+
+            string destPath;
+            try
+            {
+                string tempDir = Path.Combine(Path.GetTempPath(), "OptiGuard", "updates");
+                Directory.CreateDirectory(tempDir);
+                string fileName = string.IsNullOrEmpty(info.Asset.Name) ? "OptiGuard-Setup-" + (info.LatestVersion ?? "update") + ".exe" : info.Asset.Name;
+                destPath = Path.Combine(tempDir, fileName);
+                if (File.Exists(destPath)) TryDeleteFile(destPath);
+            }
+            catch (Exception ex)
+            {
+                error = "disk: " + ex.Message;
+                Logger.Log("Update download setup failed: " + ex.Message);
+                return false;
+            }
+
+            try
+            {
+                using (var client = new WebClient())
+                {
+                    client.Headers.Add("User-Agent", "OptiGuard-UpdateChecker");
+                    var doneEvent = new System.Threading.ManualResetEventSlim(false);
+                    Exception downloadError = null;
+
+                    if (onProgress != null)
+                    {
+                        client.DownloadProgressChanged += (s, e) =>
+                        {
+                            try { onProgress(e.ProgressPercentage); } catch { }
+                        };
+                    }
+                    client.DownloadFileCompleted += (s, e) =>
+                    {
+                        if (e.Error != null && !e.Cancelled) downloadError = e.Error;
+                        doneEvent.Set();
+                    };
+
+                    client.DownloadFileAsync(new Uri(info.Asset.DownloadUrl), destPath);
+                    doneEvent.Wait();
+                    if (downloadError != null) throw downloadError;
+                }
+            }
+            catch (Exception ex)
+            {
+                error = "download: " + ex.Message;
+                Logger.Log("Update download failed: " + ex.Message);
+                TryDeleteFile(destPath);
+                return false;
+            }
+
+            // Basic integrity check: the file we actually got must match the
+            // size GitHub told us to expect for this asset. This does not
+            // validate the content (the release has no published checksum/
+            // signature to check against), but it catches a truncated,
+            // interrupted, or otherwise short download instead of silently
+            // launching a broken .exe.
+            try
+            {
+                var actualSize = new FileInfo(destPath).Length;
+                if (info.Asset.Size > 0 && actualSize != info.Asset.Size)
+                {
+                    error = string.Format("size_mismatch: expected {0} bytes, got {1}", info.Asset.Size, actualSize);
+                    Logger.Log("Update download size mismatch: expected " + info.Asset.Size + ", got " + actualSize);
+                    TryDeleteFile(destPath);
+                    return false;
+                }
+            }
+            catch (Exception ex)
+            {
+                error = "verify: " + ex.Message;
+                Logger.Log("Update download verification failed: " + ex.Message);
+                TryDeleteFile(destPath);
+                return false;
+            }
+
+            try
+            {
+                // /SILENT still triggers the OS-level UAC elevation prompt
+                // (OptiGuard's installer requires admin rights) - that one
+                // prompt is unavoidable and is not part of Setup's own UI.
+                // Everything else about the install proceeds with no dialogs.
+                Process.Start(new ProcessStartInfo(destPath, "/SILENT") { UseShellExecute = true });
+                return true;
+            }
+            catch (Exception ex)
+            {
+                error = "launch: " + ex.Message;
+                Logger.Log("Failed to launch silent installer: " + ex.Message);
+                return false;
+            }
+        }
+
+        private static void TryDeleteFile(string path)
+        {
+            try { if (!string.IsNullOrEmpty(path) && File.Exists(path)) File.Delete(path); } catch { }
         }
     }
 }

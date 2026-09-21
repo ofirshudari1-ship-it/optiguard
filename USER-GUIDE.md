@@ -88,6 +88,15 @@ scheduled automatic cleanup — exactly which junk categories it's allowed to
 touch and a size safety limit above which it skips deleting and just
 notifies you instead.
 
+**Updates:** "Check for Updates" now downloads and installs a new version
+silently with one click ("Update Now") instead of just opening a browser
+tab — OptiGuard closes itself for a few seconds while the installer runs,
+then you relaunch it. If you'd rather updates happen with no click at all,
+turn on **"Automatically download and install updates"** (off by default).
+Either way, if the download or install fails for any reason, OptiGuard
+falls back to opening the GitHub release page so you can still get the
+update by hand.
+
 שפה, ערכת נושא, התראות, בדיקת עדכונים אוטומטית, משך שמירת הסגר (ברירת מחדל 7
 ימים), יצירת נקודת שחזור לפני ניקוי מסוכן, וגישה לקובצי לוג - הכל במקום אחד.
 לחצו על **"הצג הגדרות מתקדמות"** לאפשרויות למשתמשים מתקדמים: סינון ברירת

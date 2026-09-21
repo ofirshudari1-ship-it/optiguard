@@ -22,6 +22,12 @@ namespace UninstallerPro
         // OptiGuard version a few seconds after startup, at most once per
         // session. See UpdateChecker.cs.
         public bool AutoCheckUpdates = true;
+        // Default DISABLED (opt-in): silently downloading and launching an
+        // installer .exe is a more invasive action than the passive
+        // "here's a banner/notification" behavior AutoCheckUpdates controls,
+        // so a user has to turn this on deliberately. See UpdateChecker.cs
+        // DownloadAndLaunchSilentInstall.
+        public bool AutoInstallUpdates = false;
         public int QuarantineRetentionDays = 7;
 
         // Scheduled automatic cleanup (added 4.10.0, see ScheduledCleanupData.cs) -
@@ -74,6 +80,7 @@ namespace UninstallerPro
                     if (dict.ContainsKey("FirstLaunchCompleted") && dict["FirstLaunchCompleted"] != null) s.FirstLaunchCompleted = Convert.ToBoolean(dict["FirstLaunchCompleted"]);
                     if (dict.ContainsKey("EnableNotifications") && dict["EnableNotifications"] != null) s.EnableNotifications = Convert.ToBoolean(dict["EnableNotifications"]);
                     if (dict.ContainsKey("AutoCheckUpdates") && dict["AutoCheckUpdates"] != null) s.AutoCheckUpdates = Convert.ToBoolean(dict["AutoCheckUpdates"]);
+                    if (dict.ContainsKey("AutoInstallUpdates") && dict["AutoInstallUpdates"] != null) s.AutoInstallUpdates = Convert.ToBoolean(dict["AutoInstallUpdates"]);
                     if (dict.ContainsKey("QuarantineRetentionDays") && dict["QuarantineRetentionDays"] != null) s.QuarantineRetentionDays = Convert.ToInt32(dict["QuarantineRetentionDays"]);
                     if (dict.ContainsKey("ScheduledCleanupEnabled") && dict["ScheduledCleanupEnabled"] != null) s.ScheduledCleanupEnabled = Convert.ToBoolean(dict["ScheduledCleanupEnabled"]);
                     if (dict.ContainsKey("ScheduledCleanupFrequency") && dict["ScheduledCleanupFrequency"] != null) s.ScheduledCleanupFrequency = dict["ScheduledCleanupFrequency"].ToString();
@@ -99,7 +106,7 @@ namespace UninstallerPro
                 var serializer = new JavaScriptSerializer();
                 File.WriteAllText(AppPaths.SettingsFile, serializer.Serialize(new Dictionary<string, object>
                 {
-                    { "Theme", Theme }, { "ShowSystemComponents", ShowSystemComponents }, { "Language", Language }, { "UpdateManifestUrl", UpdateManifestUrl }, { "CreateRestorePoints", CreateRestorePoints }, { "FirstLaunchCompleted", FirstLaunchCompleted }, { "EnableNotifications", EnableNotifications }, { "AutoCheckUpdates", AutoCheckUpdates }, { "QuarantineRetentionDays", QuarantineRetentionDays },
+                    { "Theme", Theme }, { "ShowSystemComponents", ShowSystemComponents }, { "Language", Language }, { "UpdateManifestUrl", UpdateManifestUrl }, { "CreateRestorePoints", CreateRestorePoints }, { "FirstLaunchCompleted", FirstLaunchCompleted }, { "EnableNotifications", EnableNotifications }, { "AutoCheckUpdates", AutoCheckUpdates }, { "AutoInstallUpdates", AutoInstallUpdates }, { "QuarantineRetentionDays", QuarantineRetentionDays },
                     { "ScheduledCleanupEnabled", ScheduledCleanupEnabled }, { "ScheduledCleanupFrequency", ScheduledCleanupFrequency },
                     { "ScheduledCleanupCategories", ScheduledCleanupCategories }, { "ScheduledCleanupMaxSizeMB", ScheduledCleanupMaxSizeMB },
                     { "WindowWidth", WindowWidth }, { "WindowHeight", WindowHeight }, { "WindowLeft", WindowLeft }, { "WindowTop", WindowTop }, { "WindowMaximized", WindowMaximized }

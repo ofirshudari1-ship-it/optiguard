@@ -401,16 +401,32 @@ namespace UninstallerPro
                         var info = UpdateChecker.Check(Program.AppVersion);
                         if (info != null && info.Available && string.IsNullOrEmpty(info.Error))
                         {
-                            dispatcher.Invoke(() =>
+                            if (_settings.AutoInstallUpdates)
                             {
-                                text.Text = string.Format(I18n.T("update_banner_text"), info.LatestVersion);
-                                banner.Visibility = Visibility.Visible;
-                                btnDownload.Click += (s, e) =>
+                                // Opt-in fully-automatic path: no click needed. Still
+                                // shown via the same banner (transparency - the app is
+                                // about to close itself), just skipped straight to the
+                                // one-click flow instead of waiting on btnDownload.
+                                dispatcher.Invoke(() =>
                                 {
-                                    string openError;
-                                    UpdateChecker.OpenReleasePage(info.ReleaseUrl, out openError);
-                                };
-                            });
+                                    text.Text = string.Format(I18n.T("update_banner_text"), info.LatestVersion);
+                                    banner.Visibility = Visibility.Visible;
+                                    btnDownload.Visibility = Visibility.Collapsed;
+                                });
+                                await RunOneClickUpdateAsync(info);
+                            }
+                            else
+                            {
+                                dispatcher.Invoke(() =>
+                                {
+                                    text.Text = string.Format(I18n.T("update_banner_text"), info.LatestVersion);
+                                    banner.Visibility = Visibility.Visible;
+                                    btnDownload.Click += async (s, e) =>
+                                    {
+                                        await RunOneClickUpdateAsync(info);
+                                    };
+                                });
+                            }
                         }
                     }
                     catch { }
@@ -418,6 +434,67 @@ namespace UninstallerPro
             }
 
             return banner;
+        }
+
+        // One-click self-update: downloads the installer asset from the
+        // GitHub release, verifies it, and launches it with /SILENT, then
+        // closes OptiGuard so the install isn't blocked by the running exe.
+        // Used by the Settings "Check for Updates" button, the update
+        // banner's download button, and (when AutoInstallUpdates is on) the
+        // fully-automatic startup path above - all three just need to hand
+        // it an UpdateInfo with Available=true.
+        //
+        // Safe to call from any thread: every UI touch is explicitly
+        // dispatched, since the automatic path calls this from the
+        // background Task.Run in BuildUpdateBanner above.
+        //
+        // On any failure this falls back to the pre-4.11.2 behavior -
+        // opening the GitHub release page in the browser - so a network
+        // hiccup, a full disk, or a non-zero installer exit code never
+        // leaves the user with no way to get the update at all.
+        private async Task RunOneClickUpdateAsync(UpdateInfo info)
+        {
+            if (info == null) return;
+
+            if (info.Asset == null)
+            {
+                // Release has no installer asset attached (shouldn't normally
+                // happen - RELEASE-CHECKLIST.md requires exactly one - but
+                // don't assume it never will) - nothing to download.
+                string noAssetError;
+                UpdateChecker.OpenReleasePage(info.ReleaseUrl, out noAssetError);
+                return;
+            }
+
+            Window dlg = null;
+            ProgressBar bar = null;
+            TextBlock label = null;
+            Dispatcher.Invoke(() =>
+            {
+                dlg = Dialogs.ShowProgressDialog(I18n.T("update_available_title"), I18n.T("update_downloading"), out bar, out label);
+                try { dlg.Owner = this; } catch { }
+            });
+
+            string error = null;
+            bool ok = await Task.Run(() => UpdateChecker.DownloadAndLaunchSilentInstall(info, percent =>
+            {
+                Dispatcher.Invoke(() => { if (bar != null) bar.Value = percent; });
+            }, out error));
+
+            if (ok)
+            {
+                Dispatcher.Invoke(() => { if (label != null) label.Text = I18n.T("update_launching"); });
+                await Task.Delay(1200);
+                Dispatcher.Invoke(() => { try { dlg.Close(); } catch { } });
+                Dispatcher.Invoke(() => Application.Current.Shutdown());
+                return;
+            }
+
+            Dispatcher.Invoke(() => { try { dlg.Close(); } catch { } });
+            Dispatcher.Invoke(() => Dialogs.ShowError(I18n.T("generic_error_title"), string.Format(I18n.T("update_download_failed"), error)));
+
+            string fallbackError;
+            UpdateChecker.OpenReleasePage(info.ReleaseUrl, out fallbackError);
         }
 
         private UIElement BuildHeader()
@@ -2512,14 +2589,22 @@ namespace UninstallerPro
                 }
                 if (!info.Available) { Dialogs.Info("", string.Format(I18n.T("update_up_to_date"), Program.AppVersion)); return; }
                 if (!Dialogs.Confirm(I18n.T("update_available_title"), string.Format(I18n.T("update_available_msg"), info.LatestVersion, Program.AppVersion, info.Notes ?? ""))) return;
-                string openError;
-                UpdateChecker.OpenReleasePage(info.ReleaseUrl, out openError);
+                await RunOneClickUpdateAsync(info);
             };
             panel.Children.Add(btnCheckUpdates);
 
-            var chkAutoCheckUpdates = new CheckBox { Content = I18n.T("auto_check_updates"), Style = (Style)Theme.GetStyle("CardCheckBoxStyle"), Margin = new Thickness(0,0,0,14) };
+            var chkAutoCheckUpdates = new CheckBox { Content = I18n.T("auto_check_updates"), Style = (Style)Theme.GetStyle("CardCheckBoxStyle"), Margin = new Thickness(0,0,0,10) };
             chkAutoCheckUpdates.IsChecked = _settings.AutoCheckUpdates;
             panel.Children.Add(chkAutoCheckUpdates);
+
+            // Opt-in (default off, see AppSettings.AutoInstallUpdates): once
+            // on, a detected update is downloaded and installed with the new
+            // /SILENT switch with no further prompting, and OptiGuard closes
+            // itself to let the install proceed - see the startup update
+            // check above (BuildUpdateBanner) for where this is acted on.
+            var chkAutoInstallUpdates = new CheckBox { Content = I18n.T("auto_install_updates"), Style = (Style)Theme.GetStyle("CardCheckBoxStyle"), Margin = new Thickness(0,0,0,14) };
+            chkAutoInstallUpdates.IsChecked = _settings.AutoInstallUpdates;
+            panel.Children.Add(chkAutoInstallUpdates);
 
             panel.Children.Add(SectionLabel(I18n.T("section_notifications")));
             var chkNotifications = new CheckBox { Content = I18n.T("enable_notifications"), Style = (Style)Theme.GetStyle("CardCheckBoxStyle"), Margin = new Thickness(0,0,0,20) };
@@ -2586,6 +2671,7 @@ namespace UninstallerPro
                 int parsedRetention;
                 if (int.TryParse(cmbRetention.SelectedItem as string, out parsedRetention)) _settings.QuarantineRetentionDays = parsedRetention;
                 _settings.AutoCheckUpdates = chkAutoCheckUpdates.IsChecked == true;
+                _settings.AutoInstallUpdates = chkAutoInstallUpdates.IsChecked == true;
                 _settings.EnableNotifications = chkNotifications.IsChecked == true;
                 RestorePoint.Enabled = _settings.CreateRestorePoints;
 

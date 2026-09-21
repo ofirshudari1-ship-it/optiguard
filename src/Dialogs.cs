@@ -48,6 +48,27 @@ namespace UninstallerPro
             MessageBox.Show(message, string.IsNullOrEmpty(title) ? I18n.T("generic_done_title") : title, MessageBoxButton.OK, MessageBoxImage.Information);
         }
 
+        // Small modeless window showing real download progress for the
+        // one-click "Update Now" flow (Settings > Updates). The caller keeps
+        // the returned bar/label to update from the background download
+        // thread (via Dispatcher.Invoke) and calls window.Close() when done.
+        public static Window ShowProgressDialog(string title, string initialText, out ProgressBar bar, out TextBlock label)
+        {
+            var w = StyledDialog(title, 420, 130);
+            w.ResizeMode = ResizeMode.NoResize;
+            var root = new StackPanel { Margin = new Thickness(18) };
+            w.Content = root;
+
+            label = new TextBlock { Text = initialText, Foreground = Theme.Get("TextBrush"), TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0,0,0,12) };
+            root.Children.Add(label);
+
+            bar = new ProgressBar { Height = 10, Minimum = 0, Maximum = 100, Value = 0 };
+            root.Children.Add(bar);
+
+            w.Show();
+            return w;
+        }
+
         private static Window StyledDialog(string title, double width, double height)
         {
             var w = new Window
