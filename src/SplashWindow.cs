@@ -78,17 +78,29 @@ namespace UninstallerPro
                 Margin = new Thickness(0, 0, 0, 14),
                 Effect = new DropShadowEffect { BlurRadius = 18, ShadowDepth = 0, Opacity = 0.35, Color = Colors.Black }
             };
+            // BitmapScalingMode.HighQuality avoids visible blockiness if the
+            // rendered size ever falls between the .ico's embedded frame sizes.
+            RenderOptions.SetBitmapScalingMode(logo, BitmapScalingMode.HighQuality);
             try
             {
-                var logoSource = new BitmapImage();
-                logoSource.BeginInit();
-                logoSource.UriSource = new Uri("pack://application:,,,/AppIcon.ico", UriKind.Absolute);
-                logoSource.DecodePixelWidth = 192;
-                logoSource.DecodePixelHeight = 192;
-                logoSource.CacheOption = BitmapCacheOption.OnLoad;
-                logoSource.EndInit();
-                logo.Source = logoSource;
-                stack.Children.Add(logo);
+                // AppIcon.ico embeds several frames (16..256px). BitmapImage's
+                // simple UriSource path decodes frame 0, which .NET's icon
+                // encoder does not guarantee to be the largest - on this icon
+                // it resolved to a small frame that got upscaled to 192px and
+                // came out visibly pixelated. Decode every frame explicitly
+                // and pick the highest-resolution one instead.
+                var resourceUri = new Uri("pack://application:,,,/AppIcon.ico", UriKind.Absolute);
+                var streamInfo = Application.GetResourceStream(resourceUri);
+                if (streamInfo != null)
+                {
+                    using (streamInfo.Stream)
+                    {
+                        var decoder = BitmapDecoder.Create(streamInfo.Stream, BitmapCreateOptions.None, BitmapCacheOption.OnLoad);
+                        var bestFrame = decoder.Frames.OrderByDescending(f => f.PixelWidth).First();
+                        logo.Source = bestFrame;
+                    }
+                }
+                if (logo.Source != null) stack.Children.Add(logo);
             }
             catch
             {
