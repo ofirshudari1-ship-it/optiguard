@@ -2,9 +2,9 @@
 
 ## Getting started / התחלה
 
-1. Run `OptiGuard-Setup-4.15.0.exe`. Choose your language on the first screen — this
+1. Run `OptiGuard-Setup-4.15.1.exe`. Choose your language on the first screen — this
    sets the language for both the installer and the app.
-   הרץ את `OptiGuard-Setup-4.15.0.exe`. בחר שפה במסך הראשון - זה קובע את השפה גם
+   הרץ את `OptiGuard-Setup-4.15.1.exe`. בחר שפה במסך הראשון - זה קובע את השפה גם
    למתקין וגם לאפליקציה.
 2. On first launch, pick a language and theme (Light / Dark / High Contrast).
    You won't see this dialog again — change either later from **Settings**.

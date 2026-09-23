@@ -2,7 +2,7 @@
 <#
   sign.ps1 — documented template for code-signing the OptiGuard installer.
 
-  NOT run automatically by build.ps1, and Claude/an agent must never run this
+  NOT run automatically by build\build.ps1, and Claude/an agent must never run this
   script or touch certificates on your behalf — signing is a manual step only
   you can do, since it requires a hardware-backed private key you control.
 
@@ -32,7 +32,7 @@ param(
     [string]$Thumbprint,
 
     # Not hardcoded to a version - resolves the current installer name from
-    # version.json (the single source of truth, see build.ps1) so this
+    # version.json (the single source of truth, see build\build.ps1) so this
     # script doesn't go stale the next time the version bumps.
     [string]$FilePath = $(
         $v = (Get-Content "$PSScriptRoot\..\version.json" -Raw | ConvertFrom-Json).version
@@ -50,7 +50,7 @@ if (-not $signtool) {
 }
 
 if (-not (Test-Path $FilePath)) {
-    throw "File not found: $FilePath. Run .\build.ps1 first to produce it."
+    throw "File not found: $FilePath. Run .\build\build.ps1 first to produce it."
 }
 
 & $signtool.FullName sign /sha1 $Thumbprint /fd SHA256 /tr $TimestampUrl /td SHA256 /v $FilePath

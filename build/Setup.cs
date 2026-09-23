@@ -87,6 +87,8 @@ namespace OptiGuardSetup
                     { "app_running_msg", "OptiGuard is currently running.\n\nPlease close it before continuing the installation." },
                     { "browse_folder_title", "Choose install folder" },
                     { "footer_copyright", "© 2026 Ofir Shudari - All Rights Reserved" },
+                    { "title_error", "Error" },
+                    { "msg_setup_failed", "Setup failed:" },
                 }
             },
             { "he", new Dictionary<string, string>
@@ -117,6 +119,8 @@ namespace OptiGuardSetup
                     { "app_running_msg", "OptiGuard רצה כרגע.\n\nיש לסגור אותה לפני שממשיכים בהתקנה." },
                     { "browse_folder_title", "בחר תיקיית התקנה" },
                     { "footer_copyright", "© 2026 אופיר שודרי - כל הזכויות שמורות" },
+                    { "title_error", "שגיאה" },
+                    { "msg_setup_failed", "ההתקנה נכשלה:" },
                 }
             }
         };
@@ -127,6 +131,19 @@ namespace OptiGuardSetup
             if (S.TryGetValue(Lang, out dict) && dict.ContainsKey(key)) return dict[key];
             if (S.TryGetValue("en", out dict) && dict.ContainsKey(key)) return dict[key];
             return key;
+        }
+
+        // MessageBox.Show does not pick up the form's RightToLeftLayout - it needs
+        // its own MessageBoxOptions to mirror text and buttons in Hebrew. Every
+        // user-facing dialog in Setup.cs should go through this helper (instead of
+        // calling MessageBox.Show directly) so none of them regress to English-only,
+        // LTR-rendered popups.
+        public static DialogResult ShowMessageBox(IWin32Window owner, string message, string title, MessageBoxButtons buttons, MessageBoxIcon icon)
+        {
+            var options = Lang == "he"
+                ? MessageBoxOptions.RtlReading | MessageBoxOptions.RightAlign
+                : (MessageBoxOptions)0;
+            return MessageBox.Show(owner, message, title, buttons, icon, MessageBoxDefaultButton.Button1, options);
         }
     }
 
@@ -528,7 +545,7 @@ namespace OptiGuardSetup
         {
             while (System.Diagnostics.Process.GetProcessesByName("OptiGuard").Length > 0)
             {
-                var result = MessageBox.Show(this,
+                var result = SetupI18n.ShowMessageBox(this,
                     SetupI18n.T("app_running_msg"),
                     SetupI18n.T("app_running_title"), MessageBoxButtons.RetryCancel, MessageBoxIcon.Warning);
                 if (result != DialogResult.Retry)
@@ -558,7 +575,13 @@ namespace OptiGuardSetup
             }
             catch (Exception ex)
             {
-                MessageBox.Show(this, "Setup error:\n" + ex.Message, "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                // Lead-in line is translated (see title_error/msg_setup_failed in
+                // SetupI18n); ex.Message itself is a raw .NET exception message and
+                // stays as-is - there's no reliable way to translate arbitrary
+                // exception text. ShowMessageBox mirrors text and buttons when
+                // Hebrew is selected, matching RightToLeftLayout used for the rest
+                // of the wizard (see the RTL note on SetupI18n).
+                SetupI18n.ShowMessageBox(this, SetupI18n.T("msg_setup_failed") + "\n" + ex.Message, SetupI18n.T("title_error"), MessageBoxButtons.OK, MessageBoxIcon.Error);
                 ShowPage(_pageWelcome);
             }
         }

@@ -2,20 +2,25 @@
 <#
   build.ps1 — one command to produce the final OptiGuard installer.
 
+  Lives in build/ (see _AUDIT/STANDARDS.md §1 - build scripts don't belong in the
+  project root). It immediately switches back to the project root so every path
+  below (version.json, src\..., build\Setup.csproj, etc.) reads exactly as it did
+  when this script lived at the root.
+
   1. Reads version.json (the single source of truth for the version number)
   2. Writes build/Version.props so both .csproj files pick up that version
   3. Patches src/app.manifest's assemblyIdentity version to match
   4. Builds src/OptiGuard.csproj (Release) — the main app
-  5. Builds Setup.csproj (Release) — the installer, which embeds the exe from step 4
+  5. Builds build/Setup.csproj (Release) — the installer, which embeds the exe from step 4
   6. Copies the built installer to the project root as OptiGuard-Setup-<version>.exe
      (and removes any stale installer file from a previous version, so the root
      never ends up with two installers side by side)
 
-  Run from the project root:  .\build.ps1
+  Run from anywhere:  .\build\build.ps1
 #>
 
 $ErrorActionPreference = "Stop"
-Set-Location $PSScriptRoot
+Set-Location (Split-Path $PSScriptRoot -Parent)
 
 Write-Host "==> Reading version.json..." -ForegroundColor Cyan
 $versionInfo = Get-Content version.json -Raw | ConvertFrom-Json
@@ -49,11 +54,11 @@ if ($LASTEXITCODE -ne 0) { throw "Main app build failed." }
 $mainExe = "src\bin\Release\net48\OptiGuard.exe"
 if (-not (Test-Path $mainExe)) { throw "Expected build output not found: $mainExe" }
 
-Write-Host "==> Building installer (Setup.csproj)..." -ForegroundColor Cyan
-dotnet build Setup.csproj -c Release -v minimal
+Write-Host "==> Building installer (build/Setup.csproj)..." -ForegroundColor Cyan
+dotnet build build\Setup.csproj -c Release -v minimal
 if ($LASTEXITCODE -ne 0) { throw "Installer build failed." }
 
-$builtInstaller = "bin\Release\net48\OptiGuard-Setup.exe"
+$builtInstaller = "build\bin\Release\net48\OptiGuard-Setup.exe"
 if (-not (Test-Path $builtInstaller)) { throw "Expected build output not found: $builtInstaller" }
 
 $finalName = "OptiGuard-Setup-$version.exe"
