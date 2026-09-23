@@ -29,8 +29,27 @@ namespace UninstallerPro
   <SolidColorBrush x:Key='DangerHoverBrush' Color='{DANGERHOVER}'/>
   <SolidColorBrush x:Key='BorderColorBrush' Color='{BORDER}'/>
   <SolidColorBrush x:Key='GridAltBrush' Color='{GRIDALT}'/>
-  <SolidColorBrush x:Key='WhiteBrush' Color='#FFFFFF'/>
+  <SolidColorBrush x:Key='WhiteBrush' Color='{ONDANGER}'/>
   <SolidColorBrush x:Key='AccentTextBrush' Color='{ACCENTTEXT}'/>
+  <SolidColorBrush x:Key='HoverBgBrush' Color='{HOVERBG}'/>
+  <SolidColorBrush x:Key='HoverTextBrush' Color='{HOVERTEXT}'/>
+  <SolidColorBrush x:Key='FocusRingBrush' Color='{FOCUS}'/>
+
+  <!-- Keyboard focus ring (WCAG 2.2 / STANDARDS.md 18.2). WPF's default
+       FocusVisualStyle is a 1px dotted line in SystemColors.ControlText
+       (black), which is effectively invisible on the Dark theme's #0F172A
+       background and on every accent-filled button. This draws a 2px ring in
+       a per-theme color chosen for >= 3:1 against that theme's background,
+       offset just outside the control so it never sits on the fill. -->
+  <Style x:Key='FocusRingStyle'>
+    <Setter Property='Control.Template'>
+      <Setter.Value>
+        <ControlTemplate>
+          <Rectangle Margin='-3' RadiusX='10' RadiusY='10' StrokeThickness='2' Stroke='{StaticResource FocusRingBrush}' SnapsToDevicePixels='True'/>
+        </ControlTemplate>
+      </Setter.Value>
+    </Setter>
+  </Style>
 
   <Style x:Key='BaseButtonStyle' TargetType='Button'>
     <Setter Property='Cursor' Value='Hand'/>
@@ -38,6 +57,7 @@ namespace UninstallerPro
     <Setter Property='FontSize' Value='13.5'/>
     <Setter Property='BorderThickness' Value='0'/>
     <Setter Property='Height' Value='36'/>
+    <Setter Property='FocusVisualStyle' Value='{StaticResource FocusRingStyle}'/>
     <Setter Property='Template'>
       <Setter.Value>
         <ControlTemplate TargetType='Button'>
@@ -45,6 +65,9 @@ namespace UninstallerPro
             <ContentPresenter HorizontalAlignment='Center' VerticalAlignment='Center' Margin='10,0,10,0'/>
           </Border>
           <ControlTemplate.Triggers>
+            <Trigger Property='IsPressed' Value='True'>
+              <Setter TargetName='Bd' Property='Opacity' Value='0.82'/>
+            </Trigger>
             <Trigger Property='IsEnabled' Value='False'>
               <Setter TargetName='Bd' Property='Opacity' Value='0.5'/>
             </Trigger>
@@ -59,7 +82,8 @@ namespace UninstallerPro
     <Setter Property='Foreground' Value='{StaticResource TextBrush}'/>
     <Style.Triggers>
       <Trigger Property='IsMouseOver' Value='True'>
-        <Setter Property='Background' Value='{StaticResource BorderColorBrush}'/>
+        <Setter Property='Background' Value='{StaticResource HoverBgBrush}'/>
+        <Setter Property='Foreground' Value='{StaticResource HoverTextBrush}'/>
       </Trigger>
     </Style.Triggers>
   </Style>
@@ -145,7 +169,7 @@ namespace UninstallerPro
     <Setter Property='Foreground' Value='{StaticResource AccentTextBrush}'/>
     <Setter Property='FontWeight' Value='Bold'/>
     <Setter Property='Padding' Value='10,8,10,8'/>
-    <Setter Property='HorizontalContentAlignment' Value='Right'/>
+    <Setter Property='HorizontalContentAlignment' Value='Left'/>
     <Setter Property='BorderThickness' Value='0,0,0,0'/>
     <Setter Property='SnapsToDevicePixels' Value='True'/>
   </Style>
@@ -166,6 +190,7 @@ namespace UninstallerPro
   </Style>
 
   <Style x:Key='CardCheckBoxStyle' TargetType='CheckBox'>
+    <Setter Property='FocusVisualStyle' Value='{StaticResource FocusRingStyle}'/>
     <Setter Property='FontFamily' Value='Segoe UI'/>
     <Setter Property='FontSize' Value='13'/>
     <Setter Property='Foreground' Value='{StaticResource TextBrush}'/>
@@ -181,40 +206,119 @@ namespace UninstallerPro
 
 </ResourceDictionary>";
 
+        // Name of the theme last passed to Load() (the user's own choice from
+        // Settings/onboarding - "Light", "Dark" or "HighContrast"), so other
+        // windows (onboarding replay) can start from the real current value
+        // instead of assuming "Light".
+        public static string CurrentName = "Light";
+
+        // True when Windows itself is in a High Contrast / Contrast theme
+        // (Settings > Accessibility > Contrast themes). STANDARDS.md 20.2: a
+        // user who turned this on picked their own colors on purpose, so the
+        // app must not paint its brand palette over them - every brush below
+        // is then taken from SystemColors instead, whatever theme the user
+        // picked inside OptiGuard.
+        public static bool IsSystemHighContrast
+        {
+            get { try { return SystemParameters.HighContrast; } catch { return false; } }
+        }
+
+        // True whenever the effective palette is a high-contrast one (the
+        // system contrast theme, or OptiGuard's own "High Contrast" choice) -
+        // used to drop soft shadows/gradients that blur edges.
+        public static bool IsAnyHighContrast
+        {
+            get { return IsSystemHighContrast || CurrentName == "HighContrast"; }
+        }
+
+        // First-run default when there is no saved choice yet: follow the
+        // Windows app mode (Settings > Personalization > Colors > "Choose
+        // your app mode"), per STANDARDS.md section 3 ("Dark+Light with
+        // automatic detection from the system"). Falls back to Light if the
+        // value can't be read.
+        public static string DetectSystemTheme()
+        {
+            try
+            {
+                using (var key = Microsoft.Win32.Registry.CurrentUser.OpenSubKey(@"Software\Microsoft\Windows\CurrentVersion\Themes\Personalize"))
+                {
+                    var v = key != null ? key.GetValue("AppsUseLightTheme") : null;
+                    if (v is int && (int)v == 0) return "Dark";
+                }
+            }
+            catch { }
+            return "Light";
+        }
+
+        private static string Hex(Color c) { return string.Format("#{0:X2}{1:X2}{2:X2}", c.R, c.G, c.B); }
+
         public static void Load(string themeName)
         {
+            CurrentName = string.IsNullOrEmpty(themeName) ? "Light" : themeName;
             string xaml;
-            if (themeName == "Dark")
+            if (IsSystemHighContrast)
             {
+                // Windows contrast theme active: map every role onto the
+                // user's own system colors. Pairs are always used the way
+                // Windows guarantees contrast for them - WindowText on Window,
+                // HighlightText on Highlight - never mixed across pairs.
+                string window = Hex(SystemColors.WindowColor), windowText = Hex(SystemColors.WindowTextColor);
+                string highlight = Hex(SystemColors.HighlightColor), highlightText = Hex(SystemColors.HighlightTextColor);
+                xaml = XamlTemplate
+                    .Replace("{BG}", window).Replace("{PANEL}", window).Replace("{PANEL2}", window)
+                    .Replace("{HEADERBG}", window).Replace("{HEADERTEXT}", windowText).Replace("{HEADERSUB}", windowText)
+                    .Replace("{ACCENT}", highlight).Replace("{ACCENTHOVER}", highlight).Replace("{ACCENTLIGHT}", window)
+                    .Replace("{TEXT}", windowText).Replace("{TEXTMUTED}", windowText)
+                    .Replace("{DANGER}", highlight).Replace("{DANGERHOVER}", highlight).Replace("{ONDANGER}", highlightText)
+                    .Replace("{BORDER}", windowText).Replace("{GRIDALT}", window).Replace("{ACCENTTEXT}", highlightText)
+                    .Replace("{HOVERBG}", highlight).Replace("{HOVERTEXT}", highlightText).Replace("{FOCUS}", highlight);
+            }
+            else if (CurrentName == "Dark")
+            {
+                // Accent/danger fills keep their brand hue but carry DARK text:
+                // white on #10B981 is only 2.54:1 and white on #F87171 2.77:1
+                // (WCAG AA needs 4.5:1) - #06281F on #10B981 is 6.2:1 and
+                // #0F172A on #F87171 is 6.45:1.
                 xaml = XamlTemplate
                     .Replace("{BG}", "#0F172A").Replace("{PANEL}", "#1E293B").Replace("{PANEL2}", "#273349")
                     .Replace("{HEADERBG}", "#0B1220").Replace("{HEADERTEXT}", "#F1F5F9").Replace("{HEADERSUB}", "#94A3B8")
                     .Replace("{ACCENT}", "#10B981").Replace("{ACCENTHOVER}", "#34D399").Replace("{ACCENTLIGHT}", "#0F3D30")
                     .Replace("{TEXT}", "#E2E8F0").Replace("{TEXTMUTED}", "#94A3B8")
-                    .Replace("{DANGER}", "#F87171").Replace("{DANGERHOVER}", "#EF4444")
-                    .Replace("{BORDER}", "#334155").Replace("{GRIDALT}", "#19233A").Replace("{ACCENTTEXT}", "#FFFFFF");
+                    .Replace("{DANGER}", "#F87171").Replace("{DANGERHOVER}", "#FCA5A5").Replace("{ONDANGER}", "#0F172A")
+                    .Replace("{BORDER}", "#334155").Replace("{GRIDALT}", "#19233A").Replace("{ACCENTTEXT}", "#06281F")
+                    .Replace("{HOVERBG}", "#334155").Replace("{HOVERTEXT}", "#E2E8F0").Replace("{FOCUS}", "#34D399");
             }
-            else if (themeName == "HighContrast")
+            else if (CurrentName == "HighContrast")
             {
                 // ניגודיות גבוהה לנגישות: שחור-לבן טהור עם צהוב כצבע הדגשה - עומד
                 // בדרישות WCAG AA/AAA להבחנה בין טקסט לרקע טוב יותר מהערכות הרגילות.
+                // Hover is inverted yellow/black (it used to paint the white
+                // Border color behind white text - invisible on hover).
                 xaml = XamlTemplate
                     .Replace("{BG}", "#000000").Replace("{PANEL}", "#000000").Replace("{PANEL2}", "#1A1A1A")
                     .Replace("{HEADERBG}", "#000000").Replace("{HEADERTEXT}", "#FFFF00").Replace("{HEADERSUB}", "#FFFFFF")
                     .Replace("{ACCENT}", "#FFFF00").Replace("{ACCENTHOVER}", "#FFFFFF").Replace("{ACCENTLIGHT}", "#333300")
                     .Replace("{TEXT}", "#FFFFFF").Replace("{TEXTMUTED}", "#E0E0E0")
-                    .Replace("{DANGER}", "#FF6B6B").Replace("{DANGERHOVER}", "#FF4040")
-                    .Replace("{BORDER}", "#FFFFFF").Replace("{GRIDALT}", "#141414").Replace("{ACCENTTEXT}", "#000000");
+                    .Replace("{DANGER}", "#FF6B6B").Replace("{DANGERHOVER}", "#FF4040").Replace("{ONDANGER}", "#000000")
+                    .Replace("{BORDER}", "#FFFFFF").Replace("{GRIDALT}", "#141414").Replace("{ACCENTTEXT}", "#000000")
+                    .Replace("{HOVERBG}", "#FFFF00").Replace("{HOVERTEXT}", "#000000").Replace("{FOCUS}", "#00FFFF");
             }
             else
             {
+                // Light: accent deepened from #10B981 to #047857 (same emerald
+                // family) because #10B981 fails WCAG AA both as a fill under
+                // white text (2.54:1) and as text on the light background
+                // (2.32:1); #047857 is 5.48:1 / 5.01:1. Muted text #64748B ->
+                // #475569 (was 4.34:1 on the page background, 4.08:1 on
+                // Panel2) and danger #EF4444 -> #DC2626 (was 3.76:1).
                 xaml = XamlTemplate
                     .Replace("{BG}", "#F1F5F9").Replace("{PANEL}", "#FFFFFF").Replace("{PANEL2}", "#E9EEF6")
                     .Replace("{HEADERBG}", "#0F2E27").Replace("{HEADERTEXT}", "#FFFFFF").Replace("{HEADERSUB}", "#8FBFB0")
-                    .Replace("{ACCENT}", "#10B981").Replace("{ACCENTHOVER}", "#059669").Replace("{ACCENTLIGHT}", "#D1FAE5")
-                    .Replace("{TEXT}", "#1E293B").Replace("{TEXTMUTED}", "#64748B")
-                    .Replace("{DANGER}", "#EF4444").Replace("{DANGERHOVER}", "#DC2626")
-                    .Replace("{BORDER}", "#E2E8F0").Replace("{GRIDALT}", "#F8FAFC").Replace("{ACCENTTEXT}", "#FFFFFF");
+                    .Replace("{ACCENT}", "#047857").Replace("{ACCENTHOVER}", "#065F46").Replace("{ACCENTLIGHT}", "#D1FAE5")
+                    .Replace("{TEXT}", "#1E293B").Replace("{TEXTMUTED}", "#475569")
+                    .Replace("{DANGER}", "#DC2626").Replace("{DANGERHOVER}", "#B91C1C").Replace("{ONDANGER}", "#FFFFFF")
+                    .Replace("{BORDER}", "#E2E8F0").Replace("{GRIDALT}", "#F8FAFC").Replace("{ACCENTTEXT}", "#FFFFFF")
+                    .Replace("{HOVERBG}", "#E2E8F0").Replace("{HOVERTEXT}", "#1E293B").Replace("{FOCUS}", "#0F2E27");
             }
             using (var stringReader = new StringReader(xaml))
             using (var xmlReader = System.Xml.XmlReader.Create(stringReader))
@@ -231,7 +335,7 @@ namespace UninstallerPro
         // צל רך פוגע בחדות הגבולות שהמצב הזה נועד להבטיח.
         public static System.Windows.Media.Effects.Effect CardShadow(string themeName)
         {
-            if (themeName == "HighContrast") return null;
+            if (themeName == "HighContrast" || IsSystemHighContrast) return null;
             return new System.Windows.Media.Effects.DropShadowEffect
             {
                 Color = Colors.Black, Opacity = themeName == "Dark" ? 0.35 : 0.12, BlurRadius = 18, ShadowDepth = 3, Direction = 270

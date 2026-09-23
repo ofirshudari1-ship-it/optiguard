@@ -137,7 +137,7 @@ namespace UninstallerPro
             progressPanel.Children.Add(progressLbl);
             root.Children.Add(progressPanel);
 
-            var bottom = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = I18n.IsRtl ? HorizontalAlignment.Right : HorizontalAlignment.Left, Margin = new Thickness(14,0,14,14) };
+            var bottom = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Left, Margin = new Thickness(14,0,14,14) };
             DockPanel.SetDock(bottom, Dock.Bottom);
 
             var btnAll = new Button { Content = I18n.T("btn_select_all"), Style = (Style)Theme.GetStyle("GhostButtonStyle"), MinWidth = 110, Margin = new Thickness(0,0,6,0) };
@@ -345,7 +345,7 @@ namespace UninstallerPro
             progressPanel.Children.Add(progressLbl);
             root.Children.Add(progressPanel);
 
-            var bottom = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = I18n.IsRtl ? HorizontalAlignment.Right : HorizontalAlignment.Left, Margin = new Thickness(14,0,14,14) };
+            var bottom = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Left, Margin = new Thickness(14,0,14,14) };
             DockPanel.SetDock(bottom, Dock.Bottom);
 
             var btnAll = new Button { Content = I18n.T("btn_select_all"), Style = (Style)Theme.GetStyle("GhostButtonStyle"), MinWidth = 110, Margin = new Thickness(0,0,6,0) };
@@ -415,7 +415,7 @@ namespace UninstallerPro
             var txt = new TextBox { Text = defaultValue ?? "", Height = 28, FontSize = 13 };
             panel.Children.Add(txt);
 
-            var bottom = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = I18n.IsRtl ? HorizontalAlignment.Right : HorizontalAlignment.Left, Margin = new Thickness(0,16,0,0) };
+            var bottom = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Left, Margin = new Thickness(0,16,0,0) };
             var btnOk = new Button { Content = I18n.T("btn_save_fingerprint"), Style = (Style)Theme.GetStyle("AccentButtonStyle"), MinWidth = 110, Margin = new Thickness(0,0,6,0) };
             btnOk.Click += (s, e) =>
             {
@@ -440,7 +440,7 @@ namespace UninstallerPro
             var dock = new DockPanel();
             w.Content = dock;
 
-            var bottom = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = I18n.IsRtl ? HorizontalAlignment.Right : HorizontalAlignment.Left, Margin = new Thickness(14,0,14,14) };
+            var bottom = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Left, Margin = new Thickness(14,0,14,14) };
             DockPanel.SetDock(bottom, Dock.Bottom);
             var btnClose = new Button { Content = I18n.T("btn_close"), Style = (Style)Theme.GetStyle("GhostButtonStyle"), MinWidth = 100 };
             btnClose.Click += (s, e) => w.Close();
@@ -468,7 +468,7 @@ namespace UninstallerPro
             var dock = new DockPanel();
             w.Content = dock;
 
-            var bottom = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = I18n.IsRtl ? HorizontalAlignment.Right : HorizontalAlignment.Left, Margin = new Thickness(14,0,14,14) };
+            var bottom = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Left, Margin = new Thickness(14,0,14,14) };
             DockPanel.SetDock(bottom, Dock.Bottom);
             var btnOpenFolder = new Button { Content = I18n.T("btn_open_containing_folder"), Style = (Style)Theme.GetStyle("GhostButtonStyle"), MinWidth = 150, Margin = new Thickness(0,0,6,0) };
             var btnClose = new Button { Content = I18n.T("btn_close"), Style = (Style)Theme.GetStyle("GhostButtonStyle"), MinWidth = 100 };
@@ -510,7 +510,7 @@ namespace UninstallerPro
             var root = new DockPanel();
             w.Content = root;
 
-            var bottom = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = I18n.IsRtl ? HorizontalAlignment.Right : HorizontalAlignment.Left, Margin = new Thickness(16,0,16,14) };
+            var bottom = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Left, Margin = new Thickness(16,0,16,14) };
             DockPanel.SetDock(bottom, Dock.Bottom);
             var btnClose = new Button { Content = I18n.T("btn_close"), Style = (Style)Theme.GetStyle("GhostButtonStyle"), MinWidth = 100 };
             btnClose.Click += (s, e) => w.Close();
@@ -539,7 +539,7 @@ namespace UninstallerPro
                     if (issue.FixButtonKey != null)
                     {
                         var btnFix = new Button { Content = I18n.T(issue.FixButtonKey), Style = (Style)Theme.GetStyle("AccentButtonStyle"), MinWidth = 170, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(10,0,0,0) };
-                        DockPanel.SetDock(btnFix, I18n.IsRtl ? Dock.Left : Dock.Right);
+                        DockPanel.SetDock(btnFix, Dock.Right);
                         var capturedIssue = issue;
                         btnFix.Click += async (s, e) =>
                         {
@@ -591,7 +591,7 @@ namespace UninstallerPro
             var root = new DockPanel();
             w.Content = root;
 
-            var bottom = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = I18n.IsRtl ? HorizontalAlignment.Right : HorizontalAlignment.Left, Margin = new Thickness(16,0,16,14) };
+            var bottom = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Left, Margin = new Thickness(16,0,16,14) };
             DockPanel.SetDock(bottom, Dock.Bottom);
             var btnApply = new Button { Content = I18n.T("btn_apply_profile"), Style = (Style)Theme.GetStyle("AccentButtonStyle"), MinWidth = 180, Margin = new Thickness(0,0,6,0) };
             var btnClose = new Button { Content = I18n.T("btn_close"), Style = (Style)Theme.GetStyle("GhostButtonStyle"), MinWidth = 100 };

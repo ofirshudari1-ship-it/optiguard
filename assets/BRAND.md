@@ -14,13 +14,13 @@ the same accent hue so the brand stays recognizable across modes).
 | Header background | `#0F2E27` |
 | Header text | `#FFFFFF` |
 | Header subtitle | `#8FBFB0` |
-| **Accent (primary)** | **`#10B981`** |
-| Accent hover | `#059669` |
+| **Accent (primary)** | **`#047857`** (was `#10B981` before 4.15.0) |
+| Accent hover | `#065F46` |
 | Accent light (tint) | `#D1FAE5` |
 | Text | `#1E293B` |
-| Text muted | `#64748B` |
-| Danger | `#EF4444` |
-| Danger hover | `#DC2626` |
+| Text muted | `#475569` |
+| Danger | `#DC2626` |
+| Danger hover | `#B91C1C` |
 | Border | `#E2E8F0` |
 | Grid alt row | `#F8FAFC` |
 
@@ -55,7 +55,22 @@ the same accent hue so the brand stays recognizable across modes).
 | Danger | `#FF6B6B` |
 | Border | `#FFFFFF` |
 
-The accent is a green (`#10B981` in Light/Dark) — chosen to read as "safe /
+**WCAG AA pass (4.15.0, STANDARDS.md 20.1):** `#10B981` measured 2.54:1 under
+white text and 2.32:1 as text on the Light background, so the Light theme's
+accent was deepened to `#047857` (5.48:1 / 5.01:1); Dark keeps `#10B981` but
+text on accent/danger fills is now dark (`#06281F` 6.2:1, `#0F172A` 6.45:1).
+Light muted text `#475569` (was 4.34:1) and danger `#DC2626` (was 3.76:1).
+Every theme also defines a hover pair (HoverBg/HoverText) and a 2px focus-ring
+color. The brand gradient on the splash screen still runs to `#10B981`; the
+desktop widget's gradient ends on `#047857` because its small white text sits
+on that end.
+
+**Windows contrast themes (STANDARDS.md 20.2):** when
+`SystemParameters.HighContrast` is on, every role is taken from
+`SystemColors` (Window/WindowText, Highlight/HighlightText) instead of this
+palette, and the splash/widget drop their gradient and shadows.
+
+The accent is a green (`#10B981` in Dark, `#047857` in Light) — chosen to read as "safe /
 verified / go-ahead", matching the product's core promise (evidence-based
 cleanup, not fear-mongering). High Contrast swaps to yellow-on-black per
 WCAG guidance for maximum-contrast accessibility modes.

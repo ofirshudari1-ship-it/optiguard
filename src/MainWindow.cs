@@ -311,7 +311,7 @@ namespace UninstallerPro
             groupFactory.SetValue(TextBlock.ForegroundProperty, Theme.Get("TextMutedBrush"));
             groupFactory.SetValue(TextBlock.WidthProperty, 90.0);
             groupFactory.SetValue(TextBlock.FontSizeProperty, 11.0);
-            groupFactory.SetValue(DockPanel.DockProperty, I18n.IsRtl ? Dock.Right : Dock.Left);
+            groupFactory.SetValue(DockPanel.DockProperty, Dock.Left);
             var labelFactory = new FrameworkElementFactory(typeof(TextBlock));
             labelFactory.SetBinding(TextBlock.TextProperty, new Binding("Label"));
             labelFactory.SetValue(TextBlock.ForegroundProperty, Theme.Get("TextBrush"));
@@ -379,13 +379,13 @@ namespace UninstallerPro
             var btnDismiss = MakeButton("✕", "GhostButtonStyle", 32);
             btnDismiss.Height = 28;
             AutomationProperties.SetName(btnDismiss, I18n.T("btn_close"));
-            DockPanel.SetDock(btnDismiss, I18n.IsRtl ? Dock.Left : Dock.Right);
+            DockPanel.SetDock(btnDismiss, Dock.Right);
             btnDismiss.Click += (s, e) => banner.Visibility = Visibility.Collapsed;
             row.Children.Add(btnDismiss);
 
             var btnDownload = MakeButton(I18n.T("btn_update_banner_download"), "AccentButtonStyle", 150);
             btnDownload.Height = 28;
-            DockPanel.SetDock(btnDownload, I18n.IsRtl ? Dock.Left : Dock.Right);
+            DockPanel.SetDock(btnDownload, Dock.Right);
             row.Children.Add(btnDownload);
 
             var text = new TextBlock { Foreground = Theme.Get("TextBrush"), VerticalAlignment = VerticalAlignment.Center, TextWrapping = TextWrapping.Wrap };
@@ -419,7 +419,17 @@ namespace UninstallerPro
                                     banner.Visibility = Visibility.Visible;
                                     btnDownload.Visibility = Visibility.Collapsed;
                                 });
-                                await RunOneClickUpdateAsync(info);
+                                bool launched = await RunOneClickUpdateAsync(info);
+                                if (launched) return;
+                                // If the automatic install didn't go ahead (UAC
+                                // declined, download failed) the app is still
+                                // running - give the banner its button back so
+                                // the user can retry by hand.
+                                dispatcher.Invoke(() =>
+                                {
+                                    btnDownload.Visibility = Visibility.Visible;
+                                    btnDownload.Click += async (s, e) => await RunOneClickUpdateAsync(info);
+                                });
                             }
                             else
                             {
@@ -458,9 +468,9 @@ namespace UninstallerPro
         // opening the GitHub release page in the browser - so a network
         // hiccup, a full disk, or a non-zero installer exit code never
         // leaves the user with no way to get the update at all.
-        private async Task RunOneClickUpdateAsync(UpdateInfo info)
+        private async Task<bool> RunOneClickUpdateAsync(UpdateInfo info)
         {
-            if (info == null) return;
+            if (info == null) return false;
 
             if (info.Asset == null)
             {
@@ -469,7 +479,7 @@ namespace UninstallerPro
                 // don't assume it never will) - nothing to download.
                 string noAssetError;
                 UpdateChecker.OpenReleasePage(info.ReleaseUrl, out noAssetError);
-                return;
+                return false;
             }
 
             Window dlg = null;
@@ -484,7 +494,13 @@ namespace UninstallerPro
             string error = null;
             bool ok = await Task.Run(() => UpdateChecker.DownloadAndLaunchSilentInstall(info, percent =>
             {
-                Dispatcher.Invoke(() => { if (bar != null) bar.Value = percent; });
+                // Real percentage in text too, not only the bar (STANDARDS.md
+                // 16.3: "Downloading update... 45%").
+                Dispatcher.Invoke(() =>
+                {
+                    if (bar != null) bar.Value = percent;
+                    if (label != null) label.Text = I18n.T("update_downloading") + " " + percent + "%";
+                });
             }, out error));
 
             if (ok)
@@ -493,14 +509,22 @@ namespace UninstallerPro
                 await Task.Delay(1200);
                 Dispatcher.Invoke(() => { try { dlg.Close(); } catch { } });
                 Dispatcher.Invoke(() => Application.Current.Shutdown());
-                return;
+                return true;
             }
 
             Dispatcher.Invoke(() => { try { dlg.Close(); } catch { } });
+
+            // The user said "No" to the Windows UAC prompt for the installer.
+            // That's a deliberate choice, not a failure - don't answer it with
+            // an error dialog plus a browser tab they didn't ask for. The
+            // banner/Settings button stay available to try again later.
+            if (error == UpdateChecker.ErrorCancelledByUser) return false;
+
             Dispatcher.Invoke(() => Dialogs.ShowError(I18n.T("generic_error_title"), string.Format(I18n.T("update_download_failed"), error)));
 
             string fallbackError;
             UpdateChecker.OpenReleasePage(info.ReleaseUrl, out fallbackError);
+            return false;
         }
 
         private UIElement BuildHeader()
@@ -511,7 +535,7 @@ namespace UninstallerPro
             header.Child = dock;
 
             var stack = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center };
-            DockPanel.SetDock(stack, I18n.IsRtl ? Dock.Right : Dock.Left);
+            DockPanel.SetDock(stack, Dock.Left);
             var logoImg = new System.Windows.Controls.Image { Width = 40, Height = 40, Source = Icon, Margin = new Thickness(0,0,12,0) };
             stack.Children.Add(logoImg);
 
@@ -530,7 +554,7 @@ namespace UninstallerPro
             DockPanel.SetDock(footer, Dock.Bottom);
             var footerDock = new DockPanel();
             var hint = new TextBlock { Text = I18n.T("cmdpalette_placeholder"), Foreground = Theme.Get("TextMutedBrush"), FontSize = 10.5, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(14,0,14,0) };
-            DockPanel.SetDock(hint, I18n.IsRtl ? Dock.Left : Dock.Right);
+            DockPanel.SetDock(hint, Dock.Right);
             footerDock.Children.Add(hint);
             var txt = new TextBlock { Text = I18n.T("copyright"), Foreground = Theme.Get("TextMutedBrush"), FontSize = 10.5, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center };
             footerDock.Children.Add(txt);
@@ -542,8 +566,8 @@ namespace UninstallerPro
         {
             var border = new Border { Background = Theme.Get("PanelBrush"), Width = 232 };
             border.BorderBrush = Theme.Get("BorderColorBrush");
-            border.BorderThickness = I18n.IsRtl ? new Thickness(1,0,0,0) : new Thickness(0,0,1,0);
-            DockPanel.SetDock(border, I18n.IsRtl ? Dock.Right : Dock.Left);
+            border.BorderThickness = new Thickness(0,0,1,0);
+            DockPanel.SetDock(border, Dock.Left);
 
             var sidebarDock = new DockPanel();
             border.Child = sidebarDock;
@@ -594,7 +618,7 @@ namespace UninstallerPro
             string icon;
             if (NavIcons.TryGetValue(entry.Key, out icon))
             {
-                row.Children.Add(new TextBlock { Text = icon, FontSize = 13.5, Margin = I18n.IsRtl ? new Thickness(8,0,0,0) : new Thickness(0,0,8,0), VerticalAlignment = VerticalAlignment.Center });
+                row.Children.Add(new TextBlock { Text = icon, FontSize = 13.5, Margin = new Thickness(0,0,8,0), VerticalAlignment = VerticalAlignment.Center });
             }
             var text = new TextBlock { Text = I18n.T(entry.LabelKey), FontSize = 13.5, Foreground = Theme.Get("TextBrush"), VerticalAlignment = VerticalAlignment.Center };
             row.Children.Add(text);
@@ -617,8 +641,8 @@ namespace UninstallerPro
             };
             border.GotKeyboardFocus += (s, e) => border.BorderBrush = Theme.Get("AccentBrush");
             border.LostKeyboardFocus += (s, e) => border.BorderBrush = Brushes.Transparent;
-            border.MouseEnter += (s, e) => { if (_currentNavKey != entry.Key) border.Background = Theme.Get("BorderColorBrush"); };
-            border.MouseLeave += (s, e) => { if (_currentNavKey != entry.Key) border.Background = Brushes.Transparent; };
+            border.MouseEnter += (s, e) => { if (_currentNavKey != entry.Key) { border.Background = Theme.Get("HoverBgBrush"); text.Foreground = Theme.Get("HoverTextBrush"); } };
+            border.MouseLeave += (s, e) => { if (_currentNavKey != entry.Key) { border.Background = Brushes.Transparent; text.Foreground = Theme.Get("TextBrush"); } };
             _navButtons[entry.Key] = border;
             _navLabels[entry.Key] = text;
             return border;
@@ -626,7 +650,7 @@ namespace UninstallerPro
 
         private UIElement BuildGlobalBar()
         {
-            var bar = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = I18n.IsRtl ? HorizontalAlignment.Right : HorizontalAlignment.Left, Margin = new Thickness(14,10,14,4) };
+            var bar = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Left, Margin = new Thickness(14,10,14,4) };
             DockPanel.SetDock(bar, Dock.Top);
 
             var btnHunter = MakeButton(I18n.T("global_hunter"), "GhostButtonStyle", 150);
@@ -701,7 +725,7 @@ namespace UninstallerPro
 
         private StackPanel BottomBar()
         {
-            return new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = I18n.IsRtl ? HorizontalAlignment.Right : HorizontalAlignment.Left, Margin = new Thickness(14,8,14,14) };
+            return new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Left, Margin = new Thickness(14,8,14,14) };
         }
 
         // MinWidth, not Width: the button styles don't wrap or trim their text
@@ -732,7 +756,10 @@ namespace UninstallerPro
                 item.Click += (s, e) => capturedAction.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
                 menu.Items.Add(item);
             }
-            trigger.Click += (s, e) => { menu.PlacementTarget = trigger; menu.IsOpen = true; };
+            // A ContextMenu lives in its own popup window, outside MainWindow's
+            // visual tree, so it doesn't reliably pick up the window's
+            // FlowDirection - set it explicitly so Hebrew menus open RTL.
+            trigger.Click += (s, e) => { menu.FlowDirection = I18n.IsRtl ? FlowDirection.RightToLeft : FlowDirection.LeftToRight; menu.PlacementTarget = trigger; menu.IsOpen = true; };
             return trigger;
         }
 
@@ -808,7 +835,7 @@ namespace UninstallerPro
 
             var scoreText = new TextBlock { FontSize = 34, FontWeight = FontWeights.Bold, Foreground = Theme.Get("AccentBrush"), Text = "--", VerticalAlignment = VerticalAlignment.Center };
             var scoreBox = new StackPanel { VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0,0,16,0) };
-            DockPanel.SetDock(scoreBox, I18n.IsRtl ? Dock.Right : Dock.Left);
+            DockPanel.SetDock(scoreBox, Dock.Left);
             scoreBox.Children.Add(scoreText);
             scoreBox.Children.Add(new TextBlock { Text = I18n.T("health_score_title"), FontSize = 10, Foreground = Theme.Get("TextMutedBrush"), HorizontalAlignment = HorizontalAlignment.Center });
             outer.Children.Add(scoreBox);
@@ -818,7 +845,7 @@ namespace UninstallerPro
             // Icon-only button (emoji Content) - Narrator would otherwise read
             // the raw glyph instead of a meaningful label (section 18.2).
             AutomationProperties.SetName(btnRefreshScore, I18n.T("btn_refresh"));
-            DockPanel.SetDock(btnRefreshScore, I18n.IsRtl ? Dock.Left : Dock.Right);
+            DockPanel.SetDock(btnRefreshScore, Dock.Right);
             btnRefreshScore.VerticalAlignment = VerticalAlignment.Top;
             outer.Children.Add(btnRefreshScore);
 
@@ -851,7 +878,7 @@ namespace UninstallerPro
                         btnFix.FontSize = 11; btnFix.Height = 24;
                         var navTarget = issue.NavTarget;
                         btnFix.Click += (s, e) => NavigateTo(navTarget);
-                        DockPanel.SetDock(btnFix, I18n.IsRtl ? Dock.Left : Dock.Right);
+                        DockPanel.SetDock(btnFix, Dock.Right);
                         row.Children.Add(btnFix);
                         row.Children.Add(new TextBlock { Text = "• " + text, FontSize = 11, Foreground = Theme.Get("TextBrush"), TextWrapping = TextWrapping.Wrap, VerticalAlignment = VerticalAlignment.Center });
                         issuesPanel.Children.Add(row);
@@ -874,8 +901,10 @@ namespace UninstallerPro
                     btnRefreshScore.IsEnabled = true;
                     isComputing = false;
                     // Keep the desktop widget's score in sync immediately
-                    // rather than waiting for its own periodic timer.
-                    WidgetWindow.RefreshIfOpen();
+                    // rather than waiting for its own periodic timer - handing
+                    // it this result instead of making it run the (WMI-heavy)
+                    // HealthScoreData.Compute() a second time.
+                    WidgetWindow.ShowResultIfOpen(result);
                 });
             };
             btnRefreshScore.Click += (s, e) => refreshScore();
@@ -904,9 +933,7 @@ namespace UninstallerPro
                 Width = Math.Max(MinWidth, Math.Min(_settings.WindowWidth, SystemParameters.WorkArea.Width));
                 Height = Math.Max(MinHeight, Math.Min(_settings.WindowHeight, SystemParameters.WorkArea.Height));
 
-                bool fitsOnScreen = _settings.WindowLeft >= 0 && _settings.WindowTop >= 0
-                    && _settings.WindowLeft + 100 < SystemParameters.VirtualScreenWidth
-                    && _settings.WindowTop + 100 < SystemParameters.VirtualScreenHeight;
+                bool fitsOnScreen = ScreenHelper.FitsVirtualScreen(_settings.WindowLeft, _settings.WindowTop, 100);
 
                 if (fitsOnScreen)
                 {
@@ -1875,7 +1902,7 @@ namespace UninstallerPro
                         chk.Checked += (s, e) => capturedF.IsSelected = true;
                         chk.Unchecked += (s, e) => capturedF.IsSelected = false;
                         var dateTxt = new TextBlock { Text = f.LastModifiedText, Foreground = Theme.Get("TextMutedBrush"), Width = 90 };
-                        DockPanel.SetDock(dateTxt, I18n.IsRtl ? Dock.Left : Dock.Right);
+                        DockPanel.SetDock(dateTxt, Dock.Right);
                         row.Children.Add(chk);
                         row.Children.Add(dateTxt);
                         row.Children.Add(new TextBlock { Text = f.Path, Foreground = Theme.Get("TextBrush"), TextWrapping = TextWrapping.Wrap, VerticalAlignment = VerticalAlignment.Center });
@@ -2020,7 +2047,7 @@ namespace UninstallerPro
                 textStack.Children.Add(new TextBlock { Text = fix.Name, FontWeight = FontWeights.Bold, FontSize = 13.5, Foreground = Theme.Get("TextBrush") });
                 textStack.Children.Add(new TextBlock { Text = fix.Description, Foreground = Theme.Get("TextMutedBrush"), TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0,4,0,0) });
                 var btnRun = MakeButton(I18n.T("btn_run_fix"), "AccentButtonStyle", 100);
-                DockPanel.SetDock(btnRun, I18n.IsRtl ? Dock.Left : Dock.Right);
+                DockPanel.SetDock(btnRun, Dock.Right);
                 btnRun.VerticalAlignment = VerticalAlignment.Center;
                 var capturedFix = fix;
                 btnRun.Click += (s, e) =>
@@ -2660,6 +2687,12 @@ namespace UninstallerPro
             panel.Children.Add(SectionLabel(I18n.T("section_widget")));
             var chkShowWidget = new CheckBox { Content = I18n.T("show_desktop_widget"), Style = (Style)Theme.GetStyle("CardCheckBoxStyle"), Margin = new Thickness(0,0,0,4) };
             chkShowWidget.IsChecked = _settings.ShowDesktopWidget;
+            // The widget's own X button turns ShowDesktopWidget off and saves
+            // immediately. The Settings page is built once and cached, so
+            // without this the checkbox would still show "on" - and the next
+            // unrelated Save here would silently re-open the widget the user
+            // just closed.
+            WidgetWindow.HiddenByUser += () => Dispatcher.Invoke(() => chkShowWidget.IsChecked = false);
             panel.Children.Add(chkShowWidget);
             panel.Children.Add(new TextBlock { Text = I18n.T("show_desktop_widget_desc"), Foreground = Theme.Get("TextMutedBrush"), TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0,0,0,20) });
 

@@ -70,7 +70,7 @@ namespace UninstallerPro
                 // AutomationProperties.Name, Narrator reads the raw character
                 // instead of a meaningful label (section 18.2).
                 AutomationProperties.SetName(btnClose, I18n.T("btn_close"));
-                DockPanel.SetDock(btnClose, I18n.IsRtl ? Dock.Left : Dock.Right);
+                DockPanel.SetDock(btnClose, Dock.Right); // mirrored to the physical left by FlowDirection in Hebrew
                 row.Children.Add(btnClose);
 
                 var text = new TextBlock

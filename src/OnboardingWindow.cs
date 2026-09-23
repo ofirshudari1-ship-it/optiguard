@@ -28,7 +28,11 @@ namespace UninstallerPro
         public OnboardingWindow()
         {
             ResultLanguage = I18n.CurrentLang;
-            ResultTheme = "Light";
+            // Start from the theme actually in effect (system-detected on first
+            // run, the saved choice on "Show welcome guide again") - a fixed
+            // "Light" here silently switched Dark users back to Light when they
+            // replayed the guide and skipped past the theme page.
+            ResultTheme = Theme.CurrentName;
 
             Width = 560;
             Height = 440;

@@ -7,7 +7,10 @@ namespace UninstallerPro
 {
     public class AppSettings
     {
-        public string Theme = "Light";
+        // No saved choice yet -> follow the Windows light/dark app mode
+        // (STANDARDS.md section 3). An explicit choice from onboarding or
+        // Settings is saved and always wins over this afterwards.
+        public string Theme = UninstallerPro.Theme.DetectSystemTheme();
         public bool ShowSystemComponents = false;
         public string Language = I18n.English;
         // Retained (but no longer surfaced in Settings UI) for backward
@@ -82,33 +85,47 @@ namespace UninstallerPro
                     var serializer = new JavaScriptSerializer();
                     var dict = serializer.Deserialize<Dictionary<string, object>>(File.ReadAllText(AppPaths.SettingsFile));
                     var s = new AppSettings();
-                    if (dict.ContainsKey("Theme") && dict["Theme"] != null) s.Theme = dict["Theme"].ToString();
-                    if (dict.ContainsKey("ShowSystemComponents") && dict["ShowSystemComponents"] != null) s.ShowSystemComponents = Convert.ToBoolean(dict["ShowSystemComponents"]);
-                    if (dict.ContainsKey("Language") && dict["Language"] != null) s.Language = dict["Language"].ToString();
-                    if (dict.ContainsKey("UpdateManifestUrl") && dict["UpdateManifestUrl"] != null) s.UpdateManifestUrl = dict["UpdateManifestUrl"].ToString();
-                    if (dict.ContainsKey("CreateRestorePoints") && dict["CreateRestorePoints"] != null) s.CreateRestorePoints = Convert.ToBoolean(dict["CreateRestorePoints"]);
-                    if (dict.ContainsKey("FirstLaunchCompleted") && dict["FirstLaunchCompleted"] != null) s.FirstLaunchCompleted = Convert.ToBoolean(dict["FirstLaunchCompleted"]);
-                    if (dict.ContainsKey("EnableNotifications") && dict["EnableNotifications"] != null) s.EnableNotifications = Convert.ToBoolean(dict["EnableNotifications"]);
-                    if (dict.ContainsKey("AutoCheckUpdates") && dict["AutoCheckUpdates"] != null) s.AutoCheckUpdates = Convert.ToBoolean(dict["AutoCheckUpdates"]);
-                    if (dict.ContainsKey("AutoInstallUpdates") && dict["AutoInstallUpdates"] != null) s.AutoInstallUpdates = Convert.ToBoolean(dict["AutoInstallUpdates"]);
-                    if (dict.ContainsKey("QuarantineRetentionDays") && dict["QuarantineRetentionDays"] != null) s.QuarantineRetentionDays = Convert.ToInt32(dict["QuarantineRetentionDays"]);
-                    if (dict.ContainsKey("ScheduledCleanupEnabled") && dict["ScheduledCleanupEnabled"] != null) s.ScheduledCleanupEnabled = Convert.ToBoolean(dict["ScheduledCleanupEnabled"]);
-                    if (dict.ContainsKey("ScheduledCleanupFrequency") && dict["ScheduledCleanupFrequency"] != null) s.ScheduledCleanupFrequency = dict["ScheduledCleanupFrequency"].ToString();
-                    if (dict.ContainsKey("ScheduledCleanupCategories") && dict["ScheduledCleanupCategories"] != null) s.ScheduledCleanupCategories = dict["ScheduledCleanupCategories"].ToString();
-                    if (dict.ContainsKey("ScheduledCleanupMaxSizeMB") && dict["ScheduledCleanupMaxSizeMB"] != null) s.ScheduledCleanupMaxSizeMB = Convert.ToInt32(dict["ScheduledCleanupMaxSizeMB"]);
-                    if (dict.ContainsKey("WindowWidth") && dict["WindowWidth"] != null) s.WindowWidth = Convert.ToDouble(dict["WindowWidth"]);
-                    if (dict.ContainsKey("WindowHeight") && dict["WindowHeight"] != null) s.WindowHeight = Convert.ToDouble(dict["WindowHeight"]);
-                    if (dict.ContainsKey("WindowLeft") && dict["WindowLeft"] != null) s.WindowLeft = Convert.ToDouble(dict["WindowLeft"]);
-                    if (dict.ContainsKey("WindowTop") && dict["WindowTop"] != null) s.WindowTop = Convert.ToDouble(dict["WindowTop"]);
-                    if (dict.ContainsKey("WindowMaximized") && dict["WindowMaximized"] != null) s.WindowMaximized = Convert.ToBoolean(dict["WindowMaximized"]);
-                    if (dict.ContainsKey("ShowDesktopWidget") && dict["ShowDesktopWidget"] != null) s.ShowDesktopWidget = Convert.ToBoolean(dict["ShowDesktopWidget"]);
-                    if (dict.ContainsKey("WidgetLeft") && dict["WidgetLeft"] != null) s.WidgetLeft = Convert.ToDouble(dict["WidgetLeft"]);
-                    if (dict.ContainsKey("WidgetTop") && dict["WidgetTop"] != null) s.WidgetTop = Convert.ToDouble(dict["WidgetTop"]);
+                    // Each field is read independently: one hand-edited or
+                    // corrupted value (e.g. "WidgetLeft":"abc") only falls back
+                    // to that field's default instead of throwing away every
+                    // saved preference and re-running first-run onboarding.
+                    try { if (dict.ContainsKey("Theme") && dict["Theme"] != null) s.Theme = dict["Theme"].ToString(); } catch { }
+                    try { if (dict.ContainsKey("ShowSystemComponents") && dict["ShowSystemComponents"] != null) s.ShowSystemComponents = Convert.ToBoolean(dict["ShowSystemComponents"]); } catch { }
+                    try { if (dict.ContainsKey("Language") && dict["Language"] != null) s.Language = NormalizeLanguage(dict["Language"].ToString()); } catch { }
+                    try { if (dict.ContainsKey("UpdateManifestUrl") && dict["UpdateManifestUrl"] != null) s.UpdateManifestUrl = dict["UpdateManifestUrl"].ToString(); } catch { }
+                    try { if (dict.ContainsKey("CreateRestorePoints") && dict["CreateRestorePoints"] != null) s.CreateRestorePoints = Convert.ToBoolean(dict["CreateRestorePoints"]); } catch { }
+                    try { if (dict.ContainsKey("FirstLaunchCompleted") && dict["FirstLaunchCompleted"] != null) s.FirstLaunchCompleted = Convert.ToBoolean(dict["FirstLaunchCompleted"]); } catch { }
+                    try { if (dict.ContainsKey("EnableNotifications") && dict["EnableNotifications"] != null) s.EnableNotifications = Convert.ToBoolean(dict["EnableNotifications"]); } catch { }
+                    try { if (dict.ContainsKey("AutoCheckUpdates") && dict["AutoCheckUpdates"] != null) s.AutoCheckUpdates = Convert.ToBoolean(dict["AutoCheckUpdates"]); } catch { }
+                    try { if (dict.ContainsKey("AutoInstallUpdates") && dict["AutoInstallUpdates"] != null) s.AutoInstallUpdates = Convert.ToBoolean(dict["AutoInstallUpdates"]); } catch { }
+                    try { if (dict.ContainsKey("QuarantineRetentionDays") && dict["QuarantineRetentionDays"] != null) s.QuarantineRetentionDays = Convert.ToInt32(dict["QuarantineRetentionDays"]); } catch { }
+                    try { if (dict.ContainsKey("ScheduledCleanupEnabled") && dict["ScheduledCleanupEnabled"] != null) s.ScheduledCleanupEnabled = Convert.ToBoolean(dict["ScheduledCleanupEnabled"]); } catch { }
+                    try { if (dict.ContainsKey("ScheduledCleanupFrequency") && dict["ScheduledCleanupFrequency"] != null) s.ScheduledCleanupFrequency = dict["ScheduledCleanupFrequency"].ToString(); } catch { }
+                    try { if (dict.ContainsKey("ScheduledCleanupCategories") && dict["ScheduledCleanupCategories"] != null) s.ScheduledCleanupCategories = dict["ScheduledCleanupCategories"].ToString(); } catch { }
+                    try { if (dict.ContainsKey("ScheduledCleanupMaxSizeMB") && dict["ScheduledCleanupMaxSizeMB"] != null) s.ScheduledCleanupMaxSizeMB = Convert.ToInt32(dict["ScheduledCleanupMaxSizeMB"]); } catch { }
+                    try { if (dict.ContainsKey("WindowWidth") && dict["WindowWidth"] != null) s.WindowWidth = Convert.ToDouble(dict["WindowWidth"]); } catch { }
+                    try { if (dict.ContainsKey("WindowHeight") && dict["WindowHeight"] != null) s.WindowHeight = Convert.ToDouble(dict["WindowHeight"]); } catch { }
+                    try { if (dict.ContainsKey("WindowLeft") && dict["WindowLeft"] != null) s.WindowLeft = Convert.ToDouble(dict["WindowLeft"]); } catch { }
+                    try { if (dict.ContainsKey("WindowTop") && dict["WindowTop"] != null) s.WindowTop = Convert.ToDouble(dict["WindowTop"]); } catch { }
+                    try { if (dict.ContainsKey("WindowMaximized") && dict["WindowMaximized"] != null) s.WindowMaximized = Convert.ToBoolean(dict["WindowMaximized"]); } catch { }
+                    try { if (dict.ContainsKey("ShowDesktopWidget") && dict["ShowDesktopWidget"] != null) s.ShowDesktopWidget = Convert.ToBoolean(dict["ShowDesktopWidget"]); } catch { }
+                    try { if (dict.ContainsKey("WidgetLeft") && dict["WidgetLeft"] != null) s.WidgetLeft = Convert.ToDouble(dict["WidgetLeft"]); } catch { }
+                    try { if (dict.ContainsKey("WidgetTop") && dict["WidgetTop"] != null) s.WidgetTop = Convert.ToDouble(dict["WidgetTop"]); } catch { }
                     return s;
                 }
             }
             catch { }
             return new AppSettings();
+        }
+
+        // Installers before 4.15.0 seeded settings.json with "HE"/"EN", which
+        // never matched I18n.Hebrew ("he") - Hebrew picked in the installer
+        // was silently ignored. Accept any casing and fall back to English
+        // for anything unrecognized, so those existing files now work too.
+        private static string NormalizeLanguage(string value)
+        {
+            var v = (value ?? "").Trim().ToLowerInvariant();
+            return v == I18n.Hebrew ? I18n.Hebrew : I18n.English;
         }
 
         public void Save()
@@ -117,7 +134,10 @@ namespace UninstallerPro
             {
                 AppPaths.EnsureDataDir();
                 var serializer = new JavaScriptSerializer();
-                File.WriteAllText(AppPaths.SettingsFile, serializer.Serialize(new Dictionary<string, object>
+                // Written to a temp file and swapped in, so a crash/power cut
+                // mid-save can't leave a truncated settings.json behind.
+                var tmp = AppPaths.SettingsFile + ".tmp";
+                File.WriteAllText(tmp, serializer.Serialize(new Dictionary<string, object>
                 {
                     { "Theme", Theme }, { "ShowSystemComponents", ShowSystemComponents }, { "Language", Language }, { "UpdateManifestUrl", UpdateManifestUrl }, { "CreateRestorePoints", CreateRestorePoints }, { "FirstLaunchCompleted", FirstLaunchCompleted }, { "EnableNotifications", EnableNotifications }, { "AutoCheckUpdates", AutoCheckUpdates }, { "AutoInstallUpdates", AutoInstallUpdates }, { "QuarantineRetentionDays", QuarantineRetentionDays },
                     { "ScheduledCleanupEnabled", ScheduledCleanupEnabled }, { "ScheduledCleanupFrequency", ScheduledCleanupFrequency },
@@ -125,6 +145,15 @@ namespace UninstallerPro
                     { "WindowWidth", WindowWidth }, { "WindowHeight", WindowHeight }, { "WindowLeft", WindowLeft }, { "WindowTop", WindowTop }, { "WindowMaximized", WindowMaximized },
                     { "ShowDesktopWidget", ShowDesktopWidget }, { "WidgetLeft", WidgetLeft }, { "WidgetTop", WidgetTop }
                 }));
+                if (File.Exists(AppPaths.SettingsFile))
+                {
+                    try { File.Replace(tmp, AppPaths.SettingsFile, null); }
+                    catch (IOException) { File.Copy(tmp, AppPaths.SettingsFile, true); File.Delete(tmp); }
+                }
+                else
+                {
+                    File.Move(tmp, AppPaths.SettingsFile);
+                }
             }
             catch { }
         }

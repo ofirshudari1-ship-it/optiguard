@@ -46,6 +46,17 @@ namespace UninstallerPro
     // or alarm someone just because their network hiccuped.
     public static class UpdateChecker
     {
+        // Returned in `error` when the user declines the Windows UAC prompt
+        // for the downloaded installer - a deliberate choice, which callers
+        // treat silently rather than as a failure.
+        public const string ErrorCancelledByUser = "cancelled_by_user";
+
+        // A download that makes no progress for this long is treated as dead
+        // (Wi-Fi dropped, captive portal, half-open TCP connection). Without
+        // this WebClient.DownloadFileAsync can wait forever and the progress
+        // dialog never goes away.
+        private static readonly TimeSpan DownloadStallTimeout = TimeSpan.FromSeconds(45);
+
         private const string LatestReleaseApiUrl =
             "https://api.github.com/repos/ofirshudari1-ship-it/optiguard/releases/latest";
 
@@ -98,6 +109,10 @@ namespace UninstallerPro
                 var assets = assetsObj as System.Collections.IEnumerable;
                 if (assets == null) return null;
 
+                // Prefer the real installer ("OptiGuard-Setup-X.Y.Z.exe") so a
+                // stray extra .exe attached to a release can never be picked
+                // up and run as the "update"; any other .exe is only a fallback.
+                UpdateAsset fallback = null;
                 foreach (var item in assets)
                 {
                     var assetDict = item as Dictionary<string, object>;
@@ -114,8 +129,11 @@ namespace UninstallerPro
                         try { size = Convert.ToInt64(assetDict["size"]); } catch { }
                     }
 
-                    return new UpdateAsset { Name = name, DownloadUrl = url, Size = size };
+                    var asset = new UpdateAsset { Name = name, DownloadUrl = url, Size = size };
+                    if (name.StartsWith("OptiGuard-Setup", StringComparison.OrdinalIgnoreCase)) return asset;
+                    if (fallback == null) fallback = asset;
                 }
+                return fallback;
             }
             catch { }
             return null;
@@ -219,22 +237,43 @@ namespace UninstallerPro
                     client.Headers.Add("User-Agent", "OptiGuard-UpdateChecker");
                     var doneEvent = new System.Threading.ManualResetEventSlim(false);
                     Exception downloadError = null;
+                    bool cancelled = false;
+                    long lastProgressTicks = DateTime.UtcNow.Ticks;
 
-                    if (onProgress != null)
+                    client.DownloadProgressChanged += (s, e) =>
                     {
-                        client.DownloadProgressChanged += (s, e) =>
-                        {
-                            try { onProgress(e.ProgressPercentage); } catch { }
-                        };
-                    }
+                        System.Threading.Interlocked.Exchange(ref lastProgressTicks, DateTime.UtcNow.Ticks);
+                        if (onProgress != null) { try { onProgress(e.ProgressPercentage); } catch { } }
+                    };
                     client.DownloadFileCompleted += (s, e) =>
                     {
-                        if (e.Error != null && !e.Cancelled) downloadError = e.Error;
+                        if (e.Cancelled) cancelled = true;
+                        else if (e.Error != null) downloadError = e.Error;
                         doneEvent.Set();
                     };
 
                     client.DownloadFileAsync(new Uri(info.Asset.DownloadUrl), destPath);
-                    doneEvent.Wait();
+
+                    // Stall watchdog: wake up every second and give up if no
+                    // bytes have arrived for DownloadStallTimeout.
+                    bool stalled = false;
+                    while (!doneEvent.Wait(1000))
+                    {
+                        var idle = TimeSpan.FromTicks(DateTime.UtcNow.Ticks - System.Threading.Interlocked.Read(ref lastProgressTicks));
+                        if (idle > DownloadStallTimeout)
+                        {
+                            stalled = true;
+                            client.CancelAsync();
+                            doneEvent.Wait(10000);
+                            break;
+                        }
+                    }
+                    // A cancelled/stalled download leaves a partial file behind
+                    // and reports no Error - it must never fall through to the
+                    // "launch it" step below (previously a cancelled download
+                    // with no size reported by GitHub would have been launched).
+                    if (stalled) throw new TimeoutException("no data received for " + (int)DownloadStallTimeout.TotalSeconds + "s");
+                    if (cancelled) throw new OperationCanceledException("download cancelled");
                     if (downloadError != null) throw downloadError;
                 }
             }
@@ -262,6 +301,18 @@ namespace UninstallerPro
                     TryDeleteFile(destPath);
                     return false;
                 }
+                // Second, size-independent check: the file must actually be a
+                // Windows executable (PE files start with "MZ"). Catches an
+                // HTML error/login page served by a proxy or captive portal
+                // in place of the installer, including when GitHub didn't
+                // report a size to compare against.
+                if (!LooksLikeWindowsExecutable(destPath))
+                {
+                    error = "not_an_installer: downloaded file is not a Windows executable";
+                    Logger.Log("Update download rejected: file is not a PE executable (" + actualSize + " bytes)");
+                    TryDeleteFile(destPath);
+                    return false;
+                }
             }
             catch (Exception ex)
             {
@@ -277,8 +328,19 @@ namespace UninstallerPro
                 // (OptiGuard's installer requires admin rights) - that one
                 // prompt is unavoidable and is not part of Setup's own UI.
                 // Everything else about the install proceeds with no dialogs.
-                Process.Start(new ProcessStartInfo(destPath, "/SILENT") { UseShellExecute = true });
+                // /RELAUNCH: tells the new Setup to start OptiGuard again once
+                // the silent install succeeds, so a one-click update ends with
+                // the app back on screen instead of simply vanishing.
+                Process.Start(new ProcessStartInfo(destPath, "/SILENT /RELAUNCH") { UseShellExecute = true });
                 return true;
+            }
+            catch (System.ComponentModel.Win32Exception ex) when (ex.NativeErrorCode == 1223)
+            {
+                // ERROR_CANCELLED - the user chose "No" on the UAC prompt.
+                Logger.Log("Silent installer launch cancelled at the UAC prompt.");
+                TryDeleteFile(destPath);
+                error = ErrorCancelledByUser;
+                return false;
             }
             catch (Exception ex)
             {
@@ -286,6 +348,18 @@ namespace UninstallerPro
                 Logger.Log("Failed to launch silent installer: " + ex.Message);
                 return false;
             }
+        }
+
+        private static bool LooksLikeWindowsExecutable(string path)
+        {
+            try
+            {
+                using (var fs = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read))
+                {
+                    return fs.Length > 1024 && fs.ReadByte() == 'M' && fs.ReadByte() == 'Z';
+                }
+            }
+            catch { return false; }
         }
 
         private static void TryDeleteFile(string path)

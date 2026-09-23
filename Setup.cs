@@ -621,7 +621,7 @@ namespace OptiGuardSetup
         // Preserves user data: does not touch the app's settings.json (see
         // SaveAppSettings) and, on an in-place update, leaves whatever
         // shortcuts already exist untouched rather than recreating them.
-        public static int RunSilentInstall()
+        public static int RunSilentInstall(bool relaunch)
         {
             try
             {
@@ -648,6 +648,17 @@ namespace OptiGuardSetup
                 }
 
                 RegisterUninstallStatic(installDir, Path.Combine(installDir, ExeFileName), AppVersion, null);
+
+                // Self-update path (OptiGuard launched us with /SILENT
+                // /RELAUNCH and then closed itself): bring the freshly updated
+                // app back up so the update doesn't look like the app just
+                // crashed and disappeared. Plain /SILENT (scripted installs)
+                // does not start anything.
+                if (relaunch)
+                {
+                    try { Process.Start(new ProcessStartInfo(Path.Combine(installDir, ExeFileName)) { UseShellExecute = true, WorkingDirectory = installDir }); }
+                    catch (Exception ex) { LogSilentError("Relaunch after silent install failed: " + ex.Message); }
+                }
                 return 0;
             }
             catch (Exception ex)
@@ -689,16 +700,51 @@ namespace OptiGuardSetup
             catch { }
         }
 
+        // Writes to "<dest>.new" first and only swaps it into place once the
+        // whole payload is on disk. Previously the existing OptiGuard.exe was
+        // opened with FileMode.Create (truncated to 0 bytes) and streamed over
+        // in place, so an update interrupted mid-copy (disk full, power loss,
+        // AV lock) left a broken, half-written exe and no working OptiGuard at
+        // all. Now a failed update leaves the previous version intact.
         private static void WriteResourceToFile(string resourceName, string destPath)
         {
             var asm = Assembly.GetExecutingAssembly();
-            using (var stream = asm.GetManifestResourceStream(resourceName))
+            var tempPath = destPath + ".new";
+            try
             {
-                if (stream == null) throw new Exception("Resource not found: " + resourceName);
-                using (var fs = new FileStream(destPath, FileMode.Create, FileAccess.Write))
+                using (var stream = asm.GetManifestResourceStream(resourceName))
                 {
-                    stream.CopyTo(fs);
+                    if (stream == null) throw new Exception("Resource not found: " + resourceName);
+                    using (var fs = new FileStream(tempPath, FileMode.Create, FileAccess.Write))
+                    {
+                        stream.CopyTo(fs);
+                        fs.Flush(true);
+                    }
                 }
+
+                if (File.Exists(destPath))
+                {
+                    try
+                    {
+                        File.Replace(tempPath, destPath, null);
+                    }
+                    catch (IOException)
+                    {
+                        // File.Replace isn't supported on every file system /
+                        // redirected folder - fall back to delete + move (still
+                        // only after the complete new file exists).
+                        File.Delete(destPath);
+                        File.Move(tempPath, destPath);
+                    }
+                }
+                else
+                {
+                    File.Move(tempPath, destPath);
+                }
+            }
+            finally
+            {
+                try { if (File.Exists(tempPath)) File.Delete(tempPath); } catch { }
             }
         }
 
@@ -753,8 +799,17 @@ namespace OptiGuardSetup
                 Directory.CreateDirectory(appDataPath);
                 var settingsPath = Path.Combine(appDataPath, "settings.json");
                 if (File.Exists(settingsPath)) return;
-                var langCode = language == "he" ? "HE" : "EN";
-                var settings = @"{""Theme"":""Light"",""Language"":""" + langCode + @""",""ShowSystemComponents"":false,""UpdateManifestUrl"":"""",""CreateRestorePoints"":true,""FirstLaunchCompleted"":false,""EnableNotifications"":true,""AutoCheckUpdates"":false,""QuarantineRetentionDays"":7}";
+                // Lowercase "he"/"en" - the exact codes the app's I18n uses.
+                // This used to write "HE"/"EN", which never matched I18n.Hebrew
+                // ("he"), so picking Hebrew in the installer was silently lost
+                // and the app (and its first-run onboarding) opened in English.
+                // Only the installer's own choice (language) is seeded here;
+                // everything else - notably AutoCheckUpdates, which this used
+                // to force to false against the app's opt-out default of true,
+                // and Theme, which the app now picks from the Windows
+                // light/dark app mode - is left to the app's own defaults.
+                var langCode = language == "he" ? "he" : "en";
+                var settings = @"{""Language"":""" + langCode + @""",""FirstLaunchCompleted"":false}";
                 File.WriteAllText(settingsPath, settings);
             }
             catch { }
@@ -810,7 +865,9 @@ namespace OptiGuardSetup
 
             if (silent)
             {
-                Environment.ExitCode = SetupForm.RunSilentInstall();
+                bool relaunch = args.Any(a => string.Equals(a, "/RELAUNCH", StringComparison.OrdinalIgnoreCase)
+                                           || string.Equals(a, "-RELAUNCH", StringComparison.OrdinalIgnoreCase));
+                Environment.ExitCode = SetupForm.RunSilentInstall(relaunch);
                 return;
             }
 

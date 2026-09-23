@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
@@ -54,11 +55,16 @@ namespace UninstallerPro
                 }
             };
 
+            // STANDARDS.md 20.2: under a Windows contrast theme, no brand
+            // gradient/shadow behind text - the user's own system colors.
+            bool hc = Theme.IsSystemHighContrast;
             var border = new Border
             {
                 CornerRadius = new CornerRadius(20),
-                Background = gradient,
-                Effect = new DropShadowEffect { BlurRadius = 32, ShadowDepth = 0, Opacity = 0.45, Color = Colors.Black }
+                Background = hc ? (Brush)SystemColors.WindowBrush : gradient,
+                BorderBrush = hc ? SystemColors.WindowTextBrush : null,
+                BorderThickness = new Thickness(hc ? 2 : 0),
+                Effect = hc ? null : new DropShadowEffect { BlurRadius = 32, ShadowDepth = 0, Opacity = 0.45, Color = Colors.Black }
             };
 
             var stack = new StackPanel { Margin = new Thickness(32, 30, 32, 26), VerticalAlignment = VerticalAlignment.Center };
@@ -128,12 +134,25 @@ namespace UninstallerPro
 
             border.Child = stack;
             Content = border;
+            if (hc) ApplySystemTextColors(stack);
 
             Loaded += (s, e) =>
             {
                 var fadeIn = new DoubleAnimation(0, 1, TimeSpan.FromMilliseconds(220));
                 BeginAnimation(OpacityProperty, fadeIn);
             };
+        }
+
+        private static void ApplySystemTextColors(DependencyObject root)
+        {
+            foreach (var child in LogicalTreeHelper.GetChildren(root).OfType<DependencyObject>())
+            {
+                var tb = child as TextBlock;
+                if (tb != null) tb.Foreground = SystemColors.WindowTextBrush;
+                var shape = child as Shape;
+                if (shape != null) shape.Stroke = SystemColors.WindowTextBrush;
+                ApplySystemTextColors(child);
+            }
         }
 
         private static FrameworkElement BuildSpinner()
