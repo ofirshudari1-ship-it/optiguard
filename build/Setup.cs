@@ -12,18 +12,49 @@ using Microsoft.Win32;
 
 namespace OptiGuardSetup
 {
+    // Shared cross-tool installer palette (STANDARDS.md §21.1/§21.3): the exact
+    // same dark base + "IObit blue" accent used by OptiGuard's splash and by
+    // Playnest/ActionClip/SnapCap's own installers, so the four tools read as
+    // one company's suite when placed side by side. This replaces OptiGuard's
+    // former light theme + green accent (assets/BRAND.md) in the installer
+    // ONLY - the running app itself is unaffected by this round.
     static class Theme
     {
-        public static readonly Color Bg = Color.FromArgb(0xF1, 0xF5, 0xF9);
-        public static readonly Color HeaderBg = Color.FromArgb(0x0F, 0x2E, 0x27);
-        public static readonly Color HeaderText = Color.White;
-        public static readonly Color HeaderSub = Color.FromArgb(0x8F, 0xBF, 0xB0);
-        public static readonly Color Accent = Color.FromArgb(0x10, 0xB9, 0x81);
-        public static readonly Color AccentHover = Color.FromArgb(0x05, 0x96, 0x69);
-        public static readonly Color Panel2 = Color.FromArgb(0xE9, 0xEE, 0xF6);
-        public static readonly Color Border = Color.FromArgb(0xE2, 0xE8, 0xF0);
-        public static readonly Color Text = Color.FromArgb(0x1E, 0x29, 0x3B);
-        public static readonly Color TextMuted = Color.FromArgb(0x64, 0x74, 0x8B);
+        public static readonly Color Bg = Color.FromArgb(0x0B, 0x12, 0x20);         // background
+        public static readonly Color HeaderBg = Color.FromArgb(0x0B, 0x12, 0x20);   // banner gradient start (see GradientHeaderPanel)
+        public static readonly Color HeaderText = Color.FromArgb(0xEA, 0xEA, 0xEA);
+        public static readonly Color HeaderSub = Color.FromArgb(0x94, 0xA3, 0xB8);
+        public static readonly Color Accent = Color.FromArgb(0x2F, 0x6F, 0xED);     // primary accent
+        public static readonly Color AccentHover = Color.FromArgb(0x5B, 0x9A, 0xFF); // accent light (hover/gradient)
+        public static readonly Color Panel2 = Color.FromArgb(0x13, 0x1B, 0x2E);     // panel/card
+        public static readonly Color Border = Color.FromArgb(0x1E, 0x2A, 0x45);
+        public static readonly Color Text = Color.FromArgb(0xEA, 0xEA, 0xEA);
+        public static readonly Color TextMuted = Color.FromArgb(0x94, 0xA3, 0xB8);
+    }
+
+    // Owner-drawn banner panel: paints the same diagonal dark-to-accent
+    // gradient (#0B1220 -> #2F6FED) as SplashWindow, instead of a flat header
+    // color, matching the shared "brand banner" concept in STANDARDS.md §21.3
+    // (visual reference: SnapAI's build_installer.py make_banner()).
+    internal sealed class GradientHeaderPanel : Panel
+    {
+        public GradientHeaderPanel()
+        {
+            SetStyle(ControlStyles.OptimizedDoubleBuffer | ControlStyles.AllPaintingInWmPaint | ControlStyles.UserPaint, true);
+        }
+
+        protected override void OnPaint(PaintEventArgs e)
+        {
+            var rect = ClientRectangle;
+            if (rect.Width > 0 && rect.Height > 0)
+            {
+                using (var brush = new LinearGradientBrush(rect, Theme.Bg, Theme.Accent, LinearGradientMode.ForwardDiagonal))
+                {
+                    e.Graphics.FillRectangle(brush, rect);
+                }
+            }
+            base.OnPaint(e);
+        }
     }
 
     // Installer text, translated per the language picked on the first screen.
@@ -164,6 +195,7 @@ namespace OptiGuardSetup
 
         public static Button MakeButton(string text, Color back, Color fore, int width)
         {
+            bool isAccent = back == Theme.Accent;
             var btn = new Button
             {
                 Text = text,
@@ -175,13 +207,76 @@ namespace OptiGuardSetup
                 Font = new Font("Segoe UI", 10f),
                 Cursor = Cursors.Hand
             };
-            btn.FlatAppearance.BorderSize = 0;
-            var hover = ControlPaint.Dark(back, 0.08f);
+            btn.FlatAppearance.BorderSize = isAccent ? 0 : 1;
+            if (!isAccent) btn.FlatAppearance.BorderColor = Theme.Border;
+            // Primary (accent) buttons brighten toward the shared accent-light
+            // color on hover (STANDARDS.md §21.1); secondary/neutral buttons
+            // (Cancel/Browse) just darken slightly, same as before.
+            var hover = isAccent ? Theme.AccentHover : ControlPaint.Dark(back, 0.08f);
             btn.MouseEnter += (s, e) => btn.BackColor = hover;
             btn.MouseLeave += (s, e) => btn.BackColor = back;
             btn.Resize += (s, e) => RoundCorners(btn, 8);
             RoundCorners(btn, 8);
             return btn;
+        }
+
+        // Flat-styled checkbox so the native OS glyph (typically a white
+        // square) never flashes against the dark theme - the box outline and
+        // checked fill both come from the shared palette instead.
+        public static CheckBox MakeCheckBox(string text, bool isChecked, Point location)
+        {
+            var chk = new CheckBox
+            {
+                Text = text,
+                Checked = isChecked,
+                Location = location,
+                AutoSize = true,
+                ForeColor = Theme.Text,
+                BackColor = Color.Transparent,
+                FlatStyle = FlatStyle.Flat,
+                Cursor = Cursors.Hand
+            };
+            chk.FlatAppearance.BorderSize = 1;
+            chk.FlatAppearance.BorderColor = Theme.Border;
+            chk.FlatAppearance.CheckedBackColor = Theme.Accent;
+            chk.FlatAppearance.MouseOverBackColor = Theme.Panel2;
+            return chk;
+        }
+
+        // Circular "logo badge": OptiGuard's own icon (assets/icons/AppIcon.ico)
+        // clipped to a circle with an accent-colored ring, matching the shared
+        // banner treatment in STANDARDS.md §21.3 - the frame/ring is shared
+        // across all 4 tools, the icon inside stays OptiGuard's own.
+        public static Control MakeLogoBadge(int size)
+        {
+            var badge = new Panel { Size = new Size(size, size), BackColor = Color.Transparent };
+            badge.Paint += (s, e) =>
+            {
+                var g = e.Graphics;
+                g.SmoothingMode = SmoothingMode.AntiAlias;
+                var rect = new Rectangle(0, 0, size - 1, size - 1);
+                using (var bg = new SolidBrush(Theme.Panel2)) g.FillEllipse(bg, rect);
+                using (var pen = new Pen(Theme.Accent, 2f)) g.DrawEllipse(pen, rect);
+                try
+                {
+                    using (var icon = GetBrandIcon())
+                    using (var bmp = icon.ToBitmap())
+                    {
+                        int pad = size / 6;
+                        var iconRect = new Rectangle(pad, pad, size - pad * 2, size - pad * 2);
+                        using (var clip = new GraphicsPath())
+                        {
+                            clip.AddEllipse(1, 1, size - 3, size - 3);
+                            var oldClip = g.Clip;
+                            g.SetClip(clip, CombineMode.Intersect);
+                            g.DrawImage(bmp, iconRect);
+                            g.Clip = oldClip;
+                        }
+                    }
+                }
+                catch { }
+            };
+            return badge;
         }
 
         public static Bitmap MakeLogo(int size)
@@ -257,6 +352,11 @@ namespace OptiGuardSetup
             BackColor = Theme.Bg;
             Icon = UiHelpers.GetBrandIcon();
             Font = new Font("Segoe UI", 9.5f);
+            // Avoid a white WM_ERASEBKGND flash against the dark theme during
+            // resize/redraw/page-swap (STANDARDS.md §21.3: "no default-white
+            // flashes").
+            SetStyle(ControlStyles.OptimizedDoubleBuffer | ControlStyles.AllPaintingInWmPaint | ControlStyles.UserPaint, true);
+            DoubleBuffered = true;
 
             var header = BuildHeader();
             Controls.Add(header);
@@ -377,15 +477,37 @@ namespace OptiGuardSetup
             }
         }
 
+        // Shared banner layout (STANDARDS.md §21.3): circular logo badge at
+        // the leading edge (left in LTR, mirrored to the right automatically
+        // in Hebrew via RightToLeftLayout - see the RTL note above), product
+        // name + tagline next to it, version number at the opposite corner.
         private Control BuildHeader()
         {
-            var panel = new Panel { Dock = DockStyle.Top, Height = 74, BackColor = Theme.HeaderBg };
-            var logo = new PictureBox { Image = UiHelpers.GetBrandIcon().ToBitmap(), Size = new Size(40, 40), Location = new Point(496, 17), SizeMode = PictureBoxSizeMode.Zoom };
-            var title = new Label { Text = AppName, ForeColor = Theme.HeaderText, Font = new Font("Segoe UI", 15f, FontStyle.Bold), AutoSize = true, Location = new Point(20, 14) };
-            var sub = new Label { Text = "All-In-One PC Care - Setup", ForeColor = Theme.HeaderSub, Font = new Font("Segoe UI", 9f), AutoSize = true, Location = new Point(20, 44) };
-            panel.Controls.Add(logo);
+            var panel = new GradientHeaderPanel { Dock = DockStyle.Top, Height = 74 };
+
+            var badge = UiHelpers.MakeLogoBadge(46);
+            badge.Location = new Point(20, 14);
+
+            var title = new Label { Text = AppName, ForeColor = Theme.HeaderText, Font = new Font("Segoe UI", 15f, FontStyle.Bold), AutoSize = true, Location = new Point(78, 12), BackColor = Color.Transparent };
+            var sub = new Label { Text = "All-In-One PC Care - Setup", ForeColor = Theme.HeaderSub, Font = new Font("Segoe UI", 9f), AutoSize = true, Location = new Point(78, 42), BackColor = Color.Transparent };
+
+            var versionText = "v" + AppVersion;
+            var versionFont = new Font("Segoe UI", 9f, FontStyle.Bold);
+            var versionWidth = TextRenderer.MeasureText(versionText, versionFont).Width;
+            var version = new Label
+            {
+                Text = versionText,
+                ForeColor = Theme.HeaderSub,
+                Font = versionFont,
+                AutoSize = true,
+                BackColor = Color.Transparent,
+                Location = new Point(560 - 20 - versionWidth, 28)
+            };
+
+            panel.Controls.Add(badge);
             panel.Controls.Add(title);
             panel.Controls.Add(sub);
+            panel.Controls.Add(version);
             return panel;
         }
 
@@ -447,7 +569,7 @@ namespace OptiGuardSetup
 
             var lblPath = new Label { Text = (_alreadyInstalled ? SetupI18n.T("lbl_located_at") : SetupI18n.T("lbl_will_install_to")), Location = new Point(24, 88), AutoSize = true, ForeColor = Theme.Text };
             p.Controls.Add(lblPath);
-            var txtPath = new TextBox { Text = _installDir, Location = new Point(24, 111), Width = 420, ReadOnly = true, BackColor = Theme.Panel2, BorderStyle = BorderStyle.FixedSingle };
+            var txtPath = new TextBox { Text = _installDir, Location = new Point(24, 111), Width = 420, ReadOnly = true, BackColor = Theme.Panel2, ForeColor = Theme.Text, BorderStyle = BorderStyle.FixedSingle };
             p.Controls.Add(txtPath);
             if (!_alreadyInstalled)
             {
@@ -468,8 +590,8 @@ namespace OptiGuardSetup
                 p.Controls.Add(btnBrowse);
             }
 
-            _chkDesktop = new CheckBox { Text = SetupI18n.T("chk_desktop_shortcut"), Checked = true, Location = new Point(24, 153), AutoSize = true, ForeColor = Theme.Text };
-            _chkStartMenu = new CheckBox { Text = SetupI18n.T("chk_startmenu_shortcut"), Checked = true, Location = new Point(24, 181), AutoSize = true, ForeColor = Theme.Text };
+            _chkDesktop = UiHelpers.MakeCheckBox(SetupI18n.T("chk_desktop_shortcut"), true, new Point(24, 153));
+            _chkStartMenu = UiHelpers.MakeCheckBox(SetupI18n.T("chk_startmenu_shortcut"), true, new Point(24, 181));
             p.Controls.Add(_chkDesktop);
             p.Controls.Add(_chkStartMenu);
 
@@ -509,7 +631,7 @@ namespace OptiGuardSetup
             var rtl = _selectedLanguage == "he";
             var title = new Label { Text = _alreadyInstalled ? SetupI18n.T("title_update_complete") : SetupI18n.T("title_install_complete"), Font = new Font("Segoe UI", 13f, FontStyle.Bold), ForeColor = Theme.Text, Location = new Point(24, 30), AutoSize = true };
             var desc = new Label { Text = string.Format(SetupI18n.T("desc_finish"), AppName, AppVersion), Location = new Point(24, 66), Size = new Size(510, 40), ForeColor = Theme.TextMuted, TextAlign = rtl ? ContentAlignment.TopRight : ContentAlignment.TopLeft };
-            _chkLaunch = new CheckBox { Text = string.Format(SetupI18n.T("chk_launch_now"), AppName), Checked = true, Location = new Point(24, 116), AutoSize = true, ForeColor = Theme.Text };
+            _chkLaunch = UiHelpers.MakeCheckBox(string.Format(SetupI18n.T("chk_launch_now"), AppName), true, new Point(24, 116));
             p.Controls.Add(title);
             p.Controls.Add(desc);
             p.Controls.Add(_chkLaunch);

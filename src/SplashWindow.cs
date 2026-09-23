@@ -12,8 +12,9 @@ namespace UninstallerPro
 {
     // Branded splash screen, built to the mandatory cross-tool template in
     // STANDARDS.md §19 (modeled on HOMEY AI's desktop/splash.html+main.js):
-    //  1. Gradient background in OptiGuard's own brand colors (assets/BRAND.md),
-    //     not a flat/generic/white background.
+    //  1. Gradient background in the shared cross-tool palette (STANDARDS.md
+    //     §21: dark base #0B1220 -> accent blue #2F6FED), not a flat/generic/
+    //     white background and no longer OptiGuard's own green.
     //  2. The real app logo (AppIcon.ico) as the large, dominant, centered
     //     element - not a small icon or text-only.
     //  3. Frameless, transparent window with rounded corners (not a square
@@ -40,18 +41,21 @@ namespace UninstallerPro
             Height = 280;
             Opacity = 0;
 
-            // Brand gradient (assets/BRAND.md): header background #0F2E27
-            // shading into the accent green #10B981 - OptiGuard's actual
-            // palette, not a generic/white splash background.
+            // Shared cross-tool brand gradient (STANDARDS.md §21.1/§21.2):
+            // dark base #0B1220 shading into the shared "IObit blue" accent
+            // #2F6FED - OptiGuard, Playnest, ActionClip and SnapCap all use
+            // this exact gradient in splash/installer so the four tools read
+            // as one company's suite. OptiGuard's own green stays only in the
+            // running app itself (main window/tray/widget), not here.
             var gradient = new LinearGradientBrush
             {
                 StartPoint = new Point(0, 0),
                 EndPoint = new Point(1, 1),
                 GradientStops =
                 {
-                    new GradientStop(Color.FromRgb(0x0F, 0x2E, 0x27), 0.0),
-                    new GradientStop(Color.FromRgb(0x10, 0x59, 0x46), 0.55),
-                    new GradientStop(Color.FromRgb(0x10, 0xB9, 0x81), 1.0)
+                    new GradientStop(Color.FromRgb(0x0B, 0x12, 0x20), 0.0),
+                    new GradientStop(Color.FromRgb(0x13, 0x1B, 0x2E), 0.5),
+                    new GradientStop(Color.FromRgb(0x2F, 0x6F, 0xED), 1.0)
                 }
             };
 
@@ -114,7 +118,7 @@ namespace UninstallerPro
                 FontFamily = new FontFamily("Segoe UI"),
                 FontSize = 26,
                 FontWeight = FontWeights.Bold,
-                Foreground = Brushes.White,
+                Foreground = new SolidColorBrush(Color.FromRgb(0xEA, 0xEA, 0xEA)),
                 HorizontalAlignment = HorizontalAlignment.Center
             });
 
@@ -123,7 +127,7 @@ namespace UninstallerPro
                 Text = "v" + Program.AppVersion,
                 FontFamily = new FontFamily("Segoe UI"),
                 FontSize = 12,
-                Foreground = new SolidColorBrush(Color.FromRgb(0xD1, 0xFA, 0xE5)),
+                Foreground = new SolidColorBrush(Color.FromRgb(0x94, 0xA3, 0xB8)),
                 HorizontalAlignment = HorizontalAlignment.Center,
                 Margin = new Thickness(0, 4, 0, 22)
             });
@@ -138,7 +142,7 @@ namespace UninstallerPro
                 Text = "Loading...",
                 FontFamily = new FontFamily("Segoe UI"),
                 FontSize = 11,
-                Foreground = new SolidColorBrush(Color.FromRgb(0xD1, 0xFA, 0xE5)),
+                Foreground = new SolidColorBrush(Color.FromRgb(0x94, 0xA3, 0xB8)),
                 HorizontalAlignment = HorizontalAlignment.Center,
                 Margin = new Thickness(0, 12, 0, 0)
             };
