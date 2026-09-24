@@ -70,7 +70,7 @@ namespace UninstallerPro
         // small always-on-top panel showing the Health Score with quick
         // actions, kept separate from the main window. Default ON: the user
         // explicitly wants it always visible without having to open it first.
-        public bool ShowDesktopWidget = true;
+        public bool ShowDesktopWidget = false; // opt-in - off by default, enable from Settings
         // -1 sentinel = never saved yet -> WidgetWindow falls back to its
         // default bottom-right corner position, same pattern as WindowLeft/Top.
         public double WidgetLeft = -1;
