@@ -927,9 +927,28 @@ namespace OptiGuardSetup
                 key.SetValue("UninstallString", "\"" + exePath + "\" --self-uninstall");
                 key.SetValue("NoModify", 1, RegistryValueKind.DWord);
                 key.SetValue("NoRepair", 1, RegistryValueKind.DWord);
-                key.SetValue("EstimatedSize", 1024, RegistryValueKind.DWord);
+                key.SetValue("EstimatedSize", ComputeInstalledSizeKb(installDir), RegistryValueKind.DWord);
             }
             SaveAppSettings(language);
+        }
+
+        // Windows Settings > Apps reads this straight from the registry (it
+        // does not measure the install folder itself) - the previous
+        // hardcoded 1024 (1 MB) showed a fixed, wrong size regardless of
+        // OptiGuard's real footprint. Computed in KB, matching the units
+        // every other installed-program entry on the system uses.
+        private static int ComputeInstalledSizeKb(string installDir)
+        {
+            try
+            {
+                long bytes = Directory.EnumerateFiles(installDir, "*", SearchOption.AllDirectories)
+                    .Sum(f => new FileInfo(f).Length);
+                return (int)Math.Max(1, bytes / 1024);
+            }
+            catch
+            {
+                return 1024; // best-effort fallback if the folder can't be walked
+            }
         }
 
         // Only ever creates settings.json when one doesn't exist yet (fresh
