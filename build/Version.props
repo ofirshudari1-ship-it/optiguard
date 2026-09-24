@@ -5,6 +5,6 @@
     value visible to MSBuild (which can't parse JSON on its own).
   -->
   <PropertyGroup>
-    <Version>4.16.2</Version>
+    <Version>4.17.0</Version>
   </PropertyGroup>
 </Project>

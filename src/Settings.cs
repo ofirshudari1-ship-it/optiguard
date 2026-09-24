@@ -76,6 +76,16 @@ namespace UninstallerPro
         public double WidgetLeft = -1;
         public double WidgetTop = -1;
 
+        // Persistent "follow Windows theme" toggle (added 4.17.0). Before this,
+        // Theme was only ever seeded from DetectSystemTheme() once - either at
+        // first construction of AppSettings (no settings.json yet) or during
+        // onboarding - and then frozen as an explicit Light/Dark/HighContrast
+        // choice forever after, even if the user later changes their Windows
+        // theme. Default OFF: turning this on is an explicit opt-in, since it
+        // means an explicit Settings > Appearance theme choice can be silently
+        // overridden on the next launch.
+        public bool FollowSystemTheme = false;
+
         public static AppSettings Load()
         {
             try
@@ -111,6 +121,7 @@ namespace UninstallerPro
                     try { if (dict.ContainsKey("ShowDesktopWidget") && dict["ShowDesktopWidget"] != null) s.ShowDesktopWidget = Convert.ToBoolean(dict["ShowDesktopWidget"]); } catch { }
                     try { if (dict.ContainsKey("WidgetLeft") && dict["WidgetLeft"] != null) s.WidgetLeft = Convert.ToDouble(dict["WidgetLeft"]); } catch { }
                     try { if (dict.ContainsKey("WidgetTop") && dict["WidgetTop"] != null) s.WidgetTop = Convert.ToDouble(dict["WidgetTop"]); } catch { }
+                    try { if (dict.ContainsKey("FollowSystemTheme") && dict["FollowSystemTheme"] != null) s.FollowSystemTheme = Convert.ToBoolean(dict["FollowSystemTheme"]); } catch { }
                     return s;
                 }
             }
@@ -143,7 +154,8 @@ namespace UninstallerPro
                     { "ScheduledCleanupEnabled", ScheduledCleanupEnabled }, { "ScheduledCleanupFrequency", ScheduledCleanupFrequency },
                     { "ScheduledCleanupCategories", ScheduledCleanupCategories }, { "ScheduledCleanupMaxSizeMB", ScheduledCleanupMaxSizeMB },
                     { "WindowWidth", WindowWidth }, { "WindowHeight", WindowHeight }, { "WindowLeft", WindowLeft }, { "WindowTop", WindowTop }, { "WindowMaximized", WindowMaximized },
-                    { "ShowDesktopWidget", ShowDesktopWidget }, { "WidgetLeft", WidgetLeft }, { "WidgetTop", WidgetTop }
+                    { "ShowDesktopWidget", ShowDesktopWidget }, { "WidgetLeft", WidgetLeft }, { "WidgetTop", WidgetTop },
+                    { "FollowSystemTheme", FollowSystemTheme }
                 }));
                 if (File.Exists(AppPaths.SettingsFile))
                 {

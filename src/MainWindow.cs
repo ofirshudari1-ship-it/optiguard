@@ -131,6 +131,11 @@ namespace UninstallerPro
         {
             try { AppPaths.EnsureDataDir(); } catch { }
             _settings = AppSettings.Load();
+            // "Follow Windows theme" (Settings > Appearance) re-checks the live
+            // system theme on every launch, instead of the old behavior where
+            // Theme was only ever seeded from the system once (first run /
+            // onboarding) and then frozen forever after.
+            if (_settings.FollowSystemTheme) _settings.Theme = UninstallerPro.Theme.DetectSystemTheme();
             Theme.Load(_settings.Theme);
             I18n.CurrentLang = _settings.Language;
             if (!_settings.FirstLaunchCompleted)
@@ -2520,6 +2525,19 @@ namespace UninstallerPro
             themeRow.Children.Add(new TextBlock { Text = I18n.T("restart_note"), Foreground = Theme.Get("TextMutedBrush"), VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(12,0,0,0) });
             panel.Children.Add(themeRow);
 
+            var chkFollowSystemTheme = new CheckBox { Content = I18n.T("follow_system_theme"), Style = (Style)Theme.GetStyle("CardCheckBoxStyle"), Margin = new Thickness(0,0,0,4) };
+            chkFollowSystemTheme.IsChecked = _settings.FollowSystemTheme;
+            // When on, the manual Light/Dark/High-Contrast picker above is
+            // moot - the theme is re-derived from Windows on every launch
+            // (see MainWindow ctor) - so disable it to avoid implying a
+            // choice that won't stick.
+            Action updateThemeComboEnabled = () => cmbTheme.IsEnabled = chkFollowSystemTheme.IsChecked != true;
+            chkFollowSystemTheme.Checked += (s, e) => updateThemeComboEnabled();
+            chkFollowSystemTheme.Unchecked += (s, e) => updateThemeComboEnabled();
+            updateThemeComboEnabled();
+            panel.Children.Add(chkFollowSystemTheme);
+            panel.Children.Add(new TextBlock { Text = I18n.T("follow_system_theme_desc"), Foreground = Theme.Get("TextMutedBrush"), TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0,0,0,20) });
+
             panel.Children.Add(SectionLabel(I18n.T("section_language")));
             var langRow = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0,0,0,20) };
             langRow.Children.Add(new TextBlock { Text = I18n.T("language_label"), Foreground = Theme.Get("TextBrush"), VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(0,0,10,0) });
@@ -2739,9 +2757,41 @@ namespace UninstallerPro
                 _settings.Save();
                 Dialogs.Info(I18n.T("generic_done_title"), I18n.T("restart_note"));
             };
+            var btnExportDiagnostics = MakeButton(I18n.T("btn_export_diagnostics"), "GhostButtonStyle", 190);
+            btnExportDiagnostics.Margin = new Thickness(10,0,0,0);
+            btnExportDiagnostics.Click += (s, e) =>
+            {
+                var dlg = new Microsoft.Win32.SaveFileDialog
+                {
+                    Title = I18n.T("save_diagnostics_zip_title"),
+                    FileName = DiagnosticsExporter.DefaultFileName(),
+                    Filter = "Zip (*.zip)|*.zip",
+                    DefaultExt = ".zip",
+                    AddExtension = true
+                };
+                if (dlg.ShowDialog(this) != true) return;
+                try
+                {
+                    btnExportDiagnostics.IsEnabled = false;
+                    Mouse.OverrideCursor = Cursors.Wait;
+                    DiagnosticsExporter.Export(dlg.FileName);
+                    Dialogs.Info(I18n.T("generic_done_title"), string.Format(I18n.T("diagnostics_export_success"), dlg.FileName));
+                }
+                catch (Exception ex)
+                {
+                    Logger.Log("Export Diagnostics failed: " + ex);
+                    Dialogs.ShowError(I18n.T("generic_error_title"), string.Format(I18n.T("diagnostics_export_error"), ex.Message));
+                }
+                finally
+                {
+                    Mouse.OverrideCursor = null;
+                    btnExportDiagnostics.IsEnabled = true;
+                }
+            };
             aboutRow.Children.Add(btnChangelog);
             aboutRow.Children.Add(btnLicense);
             aboutRow.Children.Add(btnReplayOnboarding);
+            aboutRow.Children.Add(btnExportDiagnostics);
             panel.Children.Add(aboutRow);
 
             var btnSave = MakeButton(I18n.T("btn_save"), "AccentButtonStyle", 160);
@@ -2749,7 +2799,10 @@ namespace UninstallerPro
             btnSave.Margin = new Thickness(0);
             btnSave.Click += (s, e) =>
             {
-                _settings.Theme = cmbTheme.SelectedIndex == 1 ? "Dark" : (cmbTheme.SelectedIndex == 2 ? "HighContrast" : "Light");
+                _settings.FollowSystemTheme = chkFollowSystemTheme.IsChecked == true;
+                _settings.Theme = _settings.FollowSystemTheme
+                    ? UninstallerPro.Theme.DetectSystemTheme()
+                    : (cmbTheme.SelectedIndex == 1 ? "Dark" : (cmbTheme.SelectedIndex == 2 ? "HighContrast" : "Light"));
                 _settings.Language = cmbLang.SelectedIndex == 1 ? I18n.Hebrew : I18n.English;
                 _settings.ShowSystemComponents = chkDefaultSystem.IsChecked == true;
                 _settings.CreateRestorePoints = chkRestorePoint.IsChecked == true;

@@ -728,6 +728,7 @@ namespace OptiGuardSetup
                 WriteResourceToFile("OptiGuardSetup.locales.he.json", Path.Combine(localesDir, "he.json"));
                 WriteResourceToFile("OptiGuardSetup.CHANGELOG.md", Path.Combine(installDir, "CHANGELOG.md"));
                 WriteResourceToFile("OptiGuardSetup.EULA.md", Path.Combine(installDir, "EULA.md"));
+                WriteResourceToFile("OptiGuardSetup.version.json", Path.Combine(installDir, "version.json"));
 
                 string exePath = Path.Combine(installDir, ExeFileName);
 

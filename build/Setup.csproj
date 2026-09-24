@@ -65,6 +65,11 @@
     <EmbeddedResource Include="..\EULA.md">
       <LogicalName>OptiGuardSetup.EULA.md</LogicalName>
     </EmbeddedResource>
+    <!-- So Settings -> "Export Diagnostics" in the installed app can include the
+         real shipped version.json (see DiagnosticsExporter.cs) -->
+    <EmbeddedResource Include="..\version.json">
+      <LogicalName>OptiGuardSetup.version.json</LogicalName>
+    </EmbeddedResource>
   </ItemGroup>
 
   <Target Name="EnsureMainAppBuilt" BeforeTargets="BeforeBuild">

@@ -30,6 +30,12 @@
   <ItemGroup>
     <Reference Include="System.Management" />
     <Reference Include="System.Web.Extensions" />
+    <!-- DiagnosticsExporter.cs (Settings > About > "Export Diagnostics") uses
+         System.IO.Compression.ZipFile/CompressionLevel, which live in these
+         two assemblies on net48 (unlike modern .NET where they're part of
+         the shared framework and need no explicit reference). -->
+    <Reference Include="System.IO.Compression" />
+    <Reference Include="System.IO.Compression.FileSystem" />
   </ItemGroup>
 
   <!--
