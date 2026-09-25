@@ -1127,7 +1127,7 @@ namespace UninstallerPro
             top.Children.Add(new TextBlock { Text = I18n.T("search_label"), VerticalAlignment = VerticalAlignment.Center, Foreground = Theme.Get("TextBrush"), Margin = new Thickness(0,0,8,0) });
             _txtSearch = new TextBox { Width = 220, Height = 28, VerticalContentAlignment = VerticalAlignment.Center };
             top.Children.Add(_txtSearch);
-            _chkShowSystem = new CheckBox { Content = I18n.T("show_system_components"), Style = (Style)Theme.GetStyle("CardCheckBoxStyle"), Margin = new Thickness(16,0,0,0), VerticalAlignment = VerticalAlignment.Center };
+            _chkShowSystem = new CheckBox { Content = I18n.T("show_system_components"), Style = (Style)Theme.GetStyle("CardCheckBoxStyle"), Margin = new Thickness(16,0,0,0), VerticalAlignment = VerticalAlignment.Center, ToolTip = I18n.T("show_system_components_tooltip") };
             _chkShowSystem.IsChecked = _settings.ShowSystemComponents;
             _chkShowSystem.Click += (s, e) => RefreshPrograms();
             top.Children.Add(_chkShowSystem);
@@ -2570,9 +2570,10 @@ namespace UninstallerPro
             advancedPanel.Children.Add(new TextBlock { Text = I18n.T("advanced_settings_desc"), Foreground = Theme.Get("TextMutedBrush"), TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0,0,0,16) });
 
             advancedPanel.Children.Add(SectionLabel(I18n.T("section_programs_settings")));
-            var chkDefaultSystem = new CheckBox { Content = I18n.T("default_show_system"), Style = (Style)Theme.GetStyle("CardCheckBoxStyle"), Margin = new Thickness(0,0,0,20) };
+            var chkDefaultSystem = new CheckBox { Content = I18n.T("default_show_system"), Style = (Style)Theme.GetStyle("CardCheckBoxStyle"), Margin = new Thickness(0,0,0,4) };
             chkDefaultSystem.IsChecked = _settings.ShowSystemComponents;
             advancedPanel.Children.Add(chkDefaultSystem);
+            advancedPanel.Children.Add(new TextBlock { Text = I18n.T("default_show_system_desc"), Foreground = Theme.Get("TextMutedBrush"), TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0,0,0,20) });
 
             advancedPanel.Children.Add(SectionLabel(I18n.T("section_logs")));
             var logsRow = new StackPanel { Orientation = Orientation.Horizontal, Margin = new Thickness(0,0,0,20) };
@@ -2598,6 +2599,7 @@ namespace UninstallerPro
             // only matters once "Scheduled automatic cleanup" (below, in the
             // main flow) is actually turned on.
             advancedPanel.Children.Add(SectionLabel(I18n.T("scheduled_cleanup_categories_label")));
+            advancedPanel.Children.Add(new TextBlock { Text = I18n.T("scheduled_cleanup_categories_desc"), Foreground = Theme.Get("TextMutedBrush"), TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0,0,0,8) });
             var scheduledCategoryKeys = new[] { "user_temp", "win_temp", "browser_cache", "win_update", "thumbnails", "prefetch" };
             var scheduledCategoryLabelKeys = new[] { "junk_user_temp", "junk_win_temp", "junk_browser_cache", "junk_win_update", "junk_thumbnails", "junk_prefetch" };
             var selectedScheduledCategories = new HashSet<string>(_settings.ScheduledCleanupCategories.Split(new[] { ',' }, StringSplitOptions.RemoveEmptyEntries));
@@ -2637,6 +2639,7 @@ namespace UninstallerPro
             retentionRow.Children.Add(cmbRetention);
             retentionRow.Children.Add(new TextBlock { Text = I18n.T("quarantine_retention_days_suffix"), Foreground = Theme.Get("TextMutedBrush"), VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(8,0,0,0) });
             panel.Children.Add(retentionRow);
+            panel.Children.Add(new TextBlock { Text = I18n.T("quarantine_retention_desc"), Foreground = Theme.Get("TextMutedBrush"), TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0,-14,0,20) });
             var trustCard = new Border { Background = Theme.Get("AccentLightBrush"), BorderBrush = Theme.Get("AccentBrush"), BorderThickness = new Thickness(1), CornerRadius = new CornerRadius(8), Padding = new Thickness(16), Margin = new Thickness(0,0,0,20) };
             var trustStack = new StackPanel();
             trustStack.Children.Add(new TextBlock { Text = I18n.T("trust_note_title"), FontWeight = FontWeights.Bold, Foreground = Theme.Get("TextBrush"), Margin = new Thickness(0,0,0,6) });
@@ -2684,23 +2687,26 @@ namespace UninstallerPro
             };
             panel.Children.Add(btnCheckUpdates);
 
-            var chkAutoCheckUpdates = new CheckBox { Content = I18n.T("auto_check_updates"), Style = (Style)Theme.GetStyle("CardCheckBoxStyle"), Margin = new Thickness(0,0,0,10) };
+            var chkAutoCheckUpdates = new CheckBox { Content = I18n.T("auto_check_updates"), Style = (Style)Theme.GetStyle("CardCheckBoxStyle"), Margin = new Thickness(0,0,0,4) };
             chkAutoCheckUpdates.IsChecked = _settings.AutoCheckUpdates;
             panel.Children.Add(chkAutoCheckUpdates);
+            panel.Children.Add(new TextBlock { Text = I18n.T("auto_check_updates_desc"), Foreground = Theme.Get("TextMutedBrush"), TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0,0,0,10) });
 
             // Opt-in (default off, see AppSettings.AutoInstallUpdates): once
             // on, a detected update is downloaded and installed with the new
             // /SILENT switch with no further prompting, and OptiGuard closes
             // itself to let the install proceed - see the startup update
             // check above (BuildUpdateBanner) for where this is acted on.
-            var chkAutoInstallUpdates = new CheckBox { Content = I18n.T("auto_install_updates"), Style = (Style)Theme.GetStyle("CardCheckBoxStyle"), Margin = new Thickness(0,0,0,14) };
+            var chkAutoInstallUpdates = new CheckBox { Content = I18n.T("auto_install_updates"), Style = (Style)Theme.GetStyle("CardCheckBoxStyle"), Margin = new Thickness(0,0,0,4) };
             chkAutoInstallUpdates.IsChecked = _settings.AutoInstallUpdates;
             panel.Children.Add(chkAutoInstallUpdates);
+            panel.Children.Add(new TextBlock { Text = I18n.T("auto_install_updates_desc"), Foreground = Theme.Get("TextMutedBrush"), TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0,0,0,14) });
 
             panel.Children.Add(SectionLabel(I18n.T("section_notifications")));
-            var chkNotifications = new CheckBox { Content = I18n.T("enable_notifications"), Style = (Style)Theme.GetStyle("CardCheckBoxStyle"), Margin = new Thickness(0,0,0,20) };
+            var chkNotifications = new CheckBox { Content = I18n.T("enable_notifications"), Style = (Style)Theme.GetStyle("CardCheckBoxStyle"), Margin = new Thickness(0,0,0,4) };
             chkNotifications.IsChecked = _settings.EnableNotifications;
             panel.Children.Add(chkNotifications);
+            panel.Children.Add(new TextBlock { Text = I18n.T("enable_notifications_desc"), Foreground = Theme.Get("TextMutedBrush"), TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0,0,0,20) });
 
             panel.Children.Add(SectionLabel(I18n.T("section_widget")));
             var chkShowWidget = new CheckBox { Content = I18n.T("show_desktop_widget"), Style = (Style)Theme.GetStyle("CardCheckBoxStyle"), Margin = new Thickness(0,0,0,4) };

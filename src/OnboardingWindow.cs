@@ -8,10 +8,12 @@ namespace UninstallerPro
 {
     // First-run onboarding: 5 screens max, per the shared cross-tool standard.
     // Skip is always visible (not hidden/greyed) and Esc skips too; whoever
-    // skips still gets sane defaults (the language/theme already picked on
-    // the screens they did see, or English/Light if they skip immediately).
-    // Shown once - MainWindow sets FirstLaunchCompleted=true after this closes
-    // and never shows it again.
+    // skips still gets sane defaults (the theme already picked on the
+    // screens they did see, or Light if they skip immediately - and the
+    // language already set by the installer, see ResultLanguage below).
+    // No language picker: the installer already asked once, so this wizard
+    // never re-asks. Shown once - MainWindow sets FirstLaunchCompleted=true
+    // after this closes and never shows it again.
     public class OnboardingWindow : Window
     {
         public string ResultLanguage { get; private set; }
@@ -23,7 +25,7 @@ namespace UninstallerPro
         private readonly ContentControl _pageHost = new ContentControl();
         private readonly StackPanel _dotsPanel = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Center };
         private Button _btnBack, _btnNext, _btnSkip;
-        private ComboBox _cmbLang, _cmbTheme;
+        private ComboBox _cmbTheme;
 
         public OnboardingWindow()
         {
@@ -161,18 +163,22 @@ namespace UninstallerPro
 
             if (page == 0)
             {
-                stack.Children.Add(new TextBlock { Text = I18n.T("language_select_label"), Foreground = Theme.Get("TextBrush"), Margin = new Thickness(0, 0, 0, 8) });
-                _cmbLang = new ComboBox { Width = 220, Height = 34, HorizontalAlignment = HorizontalAlignment.Left };
-                _cmbLang.Items.Add("English");
-                _cmbLang.Items.Add("עברית");
-                _cmbLang.SelectedIndex = ResultLanguage == I18n.Hebrew ? 1 : 0;
-                _cmbLang.SelectionChanged += (s, e) =>
+                // No language picker here on purpose: the installer already
+                // asked for a language (or an existing settings.json already
+                // has one) and I18n.CurrentLang is loaded from that before
+                // this window is ever constructed (see ResultLanguage above,
+                // and MainWindow's ctor which sets I18n.CurrentLang before
+                // opening OnboardingWindow). Re-asking here would just be the
+                // same question twice. Settings still has a full Language
+                // picker for anyone who wants to double-check or change it.
+                stack.Children.Add(new TextBlock
                 {
-                    ResultLanguage = _cmbLang.SelectedIndex == 1 ? I18n.Hebrew : I18n.English;
-                    I18n.CurrentLang = ResultLanguage;
-                    RenderPage();
-                };
-                stack.Children.Add(_cmbLang);
+                    Text = I18n.T("onb_language_note"),
+                    FontSize = 12,
+                    Foreground = Theme.Get("TextMutedBrush"),
+                    TextWrapping = TextWrapping.Wrap,
+                    Margin = new Thickness(0, 0, 0, 0)
+                });
             }
             else if (page == 1)
             {

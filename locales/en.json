@@ -555,5 +555,13 @@
   "diagnostics_export_error": "Failed to export diagnostics: {0}",
   "save_diagnostics_zip_title": "Save Diagnostics",
   "follow_system_theme": "Follow Windows theme",
-  "follow_system_theme_desc": "Automatically match the app theme to your Windows light/dark setting."
+  "follow_system_theme_desc": "Automatically match the app theme to your Windows light/dark setting.",
+  "default_show_system_desc": "System and driver-related entries are hidden by default, since removing them can affect Windows itself. Turn this on only if you know what you're removing.",
+  "quarantine_retention_desc": "Files removed by cleanup actions are kept here so you can restore them if something breaks, then deleted automatically after this many days.",
+  "auto_check_updates_desc": "Looks for a newer version once each time you open OptiGuard and shows a banner if one is found. Nothing is downloaded unless you choose to update.",
+  "auto_install_updates_desc": "When a newer version is found, it's downloaded and installed silently in the background, and OptiGuard closes itself to let the install finish. Off by default, since this happens without asking first.",
+  "enable_notifications_desc": "Small pop-up messages for things like a scheduled cleanup that just ran, or files that were auto-purged from quarantine.",
+  "scheduled_cleanup_categories_desc": "Only checked categories are touched when the scheduled cleanup runs unattended. Everything else is left alone.",
+  "show_system_components_tooltip": "Also list Windows components and drivers here, not just regular installed programs. These are riskier to remove.",
+  "onb_language_note": "You can change the display language anytime in Settings."
 }
