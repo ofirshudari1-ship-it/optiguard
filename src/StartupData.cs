@@ -45,8 +45,8 @@ namespace UninstallerPro
 
             foreach (var sf in new[]
             {
-                Tuple.Create(Environment.GetFolderPath(Environment.SpecialFolder.Startup), "תיקיית הפעלה (משתמש)"),
-                Tuple.Create(Environment.GetFolderPath(Environment.SpecialFolder.CommonStartup), "תיקיית הפעלה (משותפת)")
+                Tuple.Create(Environment.GetFolderPath(Environment.SpecialFolder.Startup), I18n.T("startup_folder_user")),
+                Tuple.Create(Environment.GetFolderPath(Environment.SpecialFolder.CommonStartup), I18n.T("startup_folder_common"))
             })
             {
                 if (!Directory.Exists(sf.Item1)) continue;
@@ -73,7 +73,7 @@ namespace UninstallerPro
                                 {
                                     Enabled = false,
                                     Type = typeStr == "Folder" ? StartupType.Folder : StartupType.Registry,
-                                    Location = (bm.GetValue("OrigLocation") as string) + " (מושבת)",
+                                    Location = (bm.GetValue("OrigLocation") as string) + " " + I18n.T("startup_location_disabled_suffix"),
                                     RegHive = RegistryHive.CurrentUser,
                                     RegSubKey = bm.GetValue("OrigRegSubKey") as string,
                                     ValueName = bm.GetValue("OrigValueName") as string,

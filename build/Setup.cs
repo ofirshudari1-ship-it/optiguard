@@ -94,6 +94,8 @@ namespace OptiGuardSetup
                 {
                     { "install_title", "Install " },
                     { "update_title", "Update " },
+                    { "header_tagline", "All-In-One PC Care - Setup" },
+                    { "shortcut_description", "All-In-One PC Care" },
                     { "desc_same_version", "The installed version ({0}) is already up to date. You can reinstall anyway to repair files." },
                     { "btn_reinstall", "Reinstall" },
                     { "desc_update", "An existing installation was detected (version {0}). Setup will update it to version {1} in place - no need to uninstall first." },
@@ -120,12 +122,15 @@ namespace OptiGuardSetup
                     { "footer_copyright", "© 2026 Ofir Shudari - All Rights Reserved" },
                     { "title_error", "Error" },
                     { "msg_setup_failed", "Setup failed:" },
+                    { "msg_unknown_error", "Unknown error" },
                 }
             },
             { "he", new Dictionary<string, string>
                 {
                     { "install_title", "התקנת " },
                     { "update_title", "עדכון " },
+                    { "header_tagline", "טיפול מקיף במחשב - התקנה" },
+                    { "shortcut_description", "טיפול מקיף במחשב" },
                     { "desc_same_version", "הגרסה המותקנת ({0}) כבר עדכנית. ניתן להתקין מחדש בכל זאת כדי לתקן קבצים." },
                     { "btn_reinstall", "התקן מחדש" },
                     { "desc_update", "התגלתה התקנה קיימת (גרסה {0}). ההתקנה תעדכן אותה לגרסה {1} במקום - אין צורך להסיר קודם." },
@@ -152,6 +157,7 @@ namespace OptiGuardSetup
                     { "footer_copyright", "© 2026 אופיר שודרי - כל הזכויות שמורות" },
                     { "title_error", "שגיאה" },
                     { "msg_setup_failed", "ההתקנה נכשלה:" },
+                    { "msg_unknown_error", "שגיאה לא ידועה" },
                 }
             }
         };
@@ -330,6 +336,7 @@ namespace OptiGuardSetup
 
         private Panel _pageLanguage, _pageWelcome, _pageProgress, _pageFinish;
         private Label _footer;
+        private Label _headerSub;
         private ProgressBar _progressBar;
         private Label _progressLabel;
         private CheckBox _chkDesktop, _chkStartMenu, _chkLaunch;
@@ -383,6 +390,7 @@ namespace OptiGuardSetup
             RightToLeftLayout = _selectedLanguage == "he";
             Text = (_alreadyInstalled ? SetupI18n.T("update_title") : SetupI18n.T("install_title")) + AppName;
             if (_footer != null) _footer.Text = SetupI18n.T("footer_copyright");
+            if (_headerSub != null) _headerSub.Text = SetupI18n.T("header_tagline");
 
             if (_pageWelcome != null) Controls.Remove(_pageWelcome);
             if (_pageProgress != null) Controls.Remove(_pageProgress);
@@ -489,7 +497,8 @@ namespace OptiGuardSetup
             badge.Location = new Point(20, 14);
 
             var title = new Label { Text = AppName, ForeColor = Theme.HeaderText, Font = new Font("Segoe UI", 15f, FontStyle.Bold), AutoSize = true, Location = new Point(78, 12), BackColor = Color.Transparent };
-            var sub = new Label { Text = "All-In-One PC Care - Setup", ForeColor = Theme.HeaderSub, Font = new Font("Segoe UI", 9f), AutoSize = true, Location = new Point(78, 42), BackColor = Color.Transparent };
+            var sub = new Label { Text = SetupI18n.T("header_tagline"), ForeColor = Theme.HeaderSub, Font = new Font("Segoe UI", 9f), AutoSize = true, Location = new Point(78, 42), BackColor = Color.Transparent };
+            _headerSub = sub;
 
             var versionText = "v" + AppVersion;
             var versionFont = new Font("Segoe UI", 9f, FontStyle.Bold);
@@ -690,7 +699,7 @@ namespace OptiGuardSetup
                 {
                     ok = PerformInstallCore(_installDir, _chkDesktop.Checked, _chkStartMenu.Checked, _legacyFound, out error);
                 });
-                if (!ok) throw new Exception(error ?? "unknown error");
+                if (!ok) throw new Exception(error ?? SetupI18n.T("msg_unknown_error"));
 
                 RegisterUninstallStatic(_installDir, Path.Combine(_installDir, ExeFileName), AppVersion, _selectedLanguage);
                 ShowPage(_pageFinish);
@@ -903,7 +912,7 @@ namespace OptiGuardSetup
             scType.InvokeMember("TargetPath", BindingFlags.SetProperty, null, shortcut, new object[] { targetExe });
             scType.InvokeMember("WorkingDirectory", BindingFlags.SetProperty, null, shortcut, new object[] { workingDir });
             scType.InvokeMember("IconLocation", BindingFlags.SetProperty, null, shortcut, new object[] { targetExe + ",0" });
-            scType.InvokeMember("Description", BindingFlags.SetProperty, null, shortcut, new object[] { SetupForm.AppName + " - All-In-One PC Care" });
+            scType.InvokeMember("Description", BindingFlags.SetProperty, null, shortcut, new object[] { SetupForm.AppName + " - " + SetupI18n.T("shortcut_description") });
             scType.InvokeMember("Save", BindingFlags.InvokeMethod, null, shortcut, null);
         }
 

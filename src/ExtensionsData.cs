@@ -16,21 +16,37 @@ namespace UninstallerPro
             "pkedcjkdefgpdelpbcmbmeomcjbeemfm","mhjfbmdgcfjbbpaeojofohoefgiehjai","oimompecagnajdejgnnjijobebaeigek"
         });
 
-        private static readonly Dictionary<string, string> HighRiskPermissions = new Dictionary<string, string>
+        // Keys are the raw Chrome/Firefox manifest permission identifiers (fixed,
+        // not localized); values are I18n lookups so the human-readable label
+        // shown in the Extensions grid follows I18n.CurrentLang instead of being
+        // baked into one language.
+        private static Dictionary<string, string> HighRiskPermissions
         {
-            { "<all_urls>", "כל האתרים" }, { "*://*/*", "כל האתרים" }, { "http://*/*", "כל האתרים (HTTP)" }, { "https://*/*", "כל האתרים (HTTPS)" },
-            { "tabs", "כרטיסיות פתוחות" }, { "history", "היסטוריית גלישה" }, { "cookies", "עוגיות" },
-            { "webRequest", "יירוט תעבורת רשת" }, { "webRequestBlocking", "חסימת תעבורת רשת" },
-            { "clipboardRead", "קריאת לוח העתקה" }, { "geolocation", "מיקום" }, { "management", "ניהול תוספים אחרים" },
-            { "proxy", "הגדרות פרוקסי" }, { "debugger", "דיבאגר דפדפן" }, { "nativeMessaging", "תקשורת עם תוכנות מקומיות" },
-            { "browsingData", "מחיקת נתוני גלישה" }, { "privacy", "הגדרות פרטיות" }, { "downloads", "ניהול הורדות" },
-        };
+            get
+            {
+                return new Dictionary<string, string>
+                {
+                    { "<all_urls>", I18n.T("ext_perm_all_sites") }, { "*://*/*", I18n.T("ext_perm_all_sites") }, { "http://*/*", I18n.T("ext_perm_all_sites_http") }, { "https://*/*", I18n.T("ext_perm_all_sites_https") },
+                    { "tabs", I18n.T("ext_perm_tabs") }, { "history", I18n.T("ext_perm_history") }, { "cookies", I18n.T("ext_perm_cookies") },
+                    { "webRequest", I18n.T("ext_perm_webrequest") }, { "webRequestBlocking", I18n.T("ext_perm_webrequest_blocking") },
+                    { "clipboardRead", I18n.T("ext_perm_clipboard_read") }, { "geolocation", I18n.T("ext_perm_geolocation") }, { "management", I18n.T("ext_perm_management") },
+                    { "proxy", I18n.T("ext_perm_proxy") }, { "debugger", I18n.T("ext_perm_debugger") }, { "nativeMessaging", I18n.T("ext_perm_native_messaging") },
+                    { "browsingData", I18n.T("ext_perm_browsing_data") }, { "privacy", I18n.T("ext_perm_privacy") }, { "downloads", I18n.T("ext_perm_downloads") },
+                };
+            }
+        }
 
-        private static readonly Dictionary<string, string> MediumRiskPermissions = new Dictionary<string, string>
+        private static Dictionary<string, string> MediumRiskPermissions
         {
-            { "bookmarks", "סימניות" }, { "topSites", "אתרים מובילים" }, { "browsingData", "נתוני גלישה" },
-            { "contentSettings", "הגדרות תוכן" }, { "identity", "זהות המשתמש" }, { "storage", "אחסון מקומי" },
-        };
+            get
+            {
+                return new Dictionary<string, string>
+                {
+                    { "bookmarks", I18n.T("ext_perm_bookmarks") }, { "topSites", I18n.T("ext_perm_top_sites") }, { "browsingData", I18n.T("ext_perm_browsing_data_alt") },
+                    { "contentSettings", I18n.T("ext_perm_content_settings") }, { "identity", I18n.T("ext_perm_identity") }, { "storage", I18n.T("ext_perm_storage") },
+                };
+            }
+        }
 
         private static void ComputeRisk(BrowserExtension ext, Dictionary<string, object> manifest)
         {
@@ -46,7 +62,7 @@ namespace UninstallerPro
             {
                 string label;
                 if (HighRiskPermissions.TryGetValue(p, out label)) { high = true; if (!reasons.Contains(label)) reasons.Add(label); }
-                else if (p.StartsWith("http") && p.EndsWith("/*")) { high = true; if (!reasons.Contains("גישה לאתרים")) reasons.Add("גישה לאתרים"); }
+                else if (p.StartsWith("http") && p.EndsWith("/*")) { high = true; var siteAccess = I18n.T("ext_perm_site_access"); if (!reasons.Contains(siteAccess)) reasons.Add(siteAccess); }
                 else if (MediumRiskPermissions.TryGetValue(p, out label)) { medium = true; if (!reasons.Contains(label)) reasons.Add(label); }
             }
             ext.RiskLevel = high ? "high" : (medium ? "medium" : "low");
@@ -68,7 +84,7 @@ namespace UninstallerPro
         private static string ResolveExtensionName(Dictionary<string, object> manifest, string extDir)
         {
             var name = manifest.ContainsKey("name") ? manifest["name"] as string : null;
-            if (name == null) return "(ללא שם)";
+            if (name == null) return I18n.T("ext_no_name");
             var m = Regex.Match(name, "^__MSG_(.+)__$");
             if (!m.Success) return name;
             var key = m.Groups[1].Value;

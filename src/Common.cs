@@ -182,10 +182,10 @@ namespace UninstallerPro
             if (SafetyGuard.IsProtectedName(n)) return null;
             var noSpace = Regex.Replace(n, @"[^\p{L}\p{Nd}]", "");
             var fullNoSpace = Regex.Replace(displayName ?? "", @"[^\p{L}\p{Nd}]", "").ToLowerInvariant();
-            if (fullNoSpace.Length >= 4 && noSpace == fullNoSpace) return "שם מלא זהה";
+            if (fullNoSpace.Length >= 4 && noSpace == fullNoSpace) return I18n.T("residual_reason_exact_name");
             foreach (var t in nameTokens)
             {
-                if (t.Length >= 4 && n.Contains(t)) return "התאמת מילה: " + t;
+                if (t.Length >= 4 && n.Contains(t)) return string.Format(I18n.T("residual_reason_word_match"), t);
             }
             return null;
         }

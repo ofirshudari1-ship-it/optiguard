@@ -1276,7 +1276,7 @@ namespace UninstallerPro
                 Mouse.OverrideCursor = null;
                 if (RegistryUtil.SubKeyExists(a.Hive, a.SubKeyPath) && !items.Any(i => i.Type == ResidualType.Registry && i.SubKeyPath == a.SubKeyPath))
                 {
-                    items.Add(new ResidualItem { Type = ResidualType.Registry, Hive = a.Hive, SubKeyPath = a.SubKeyPath, Path = a.SubKeyPath, DisplayPath = ProgramsData.HiveName(a.Hive) + "\\" + a.SubKeyPath, Reason = "original uninstall entry (not yet deleted)" });
+                    items.Add(new ResidualItem { Type = ResidualType.Registry, Hive = a.Hive, SubKeyPath = a.SubKeyPath, Path = a.SubKeyPath, DisplayPath = ProgramsData.HiveName(a.Hive) + "\\" + a.SubKeyPath, Reason = I18n.T("residual_reason_original_entry") });
                 }
                 MergeFingerprintItems(items, a.DisplayName);
                 Dialogs.ShowResidualPicker(items, a.DisplayName);
@@ -1414,7 +1414,7 @@ namespace UninstallerPro
                 Mouse.OverrideCursor = Cursors.Wait;
                 bool ok = await Task.Run(() => GamesData.ForceRemove(g));
                 Mouse.OverrideCursor = null;
-                if (ok) { Stats.Add(d => d.GamesRemoved++); Dialogs.Info(I18n.T("generic_done_title"), I18n.T("fix_done_msg")); } else Dialogs.ShowError(I18n.T("generic_error_title"), "See log file.");
+                if (ok) { Stats.Add(d => d.GamesRemoved++); Dialogs.Info(I18n.T("generic_done_title"), I18n.T("fix_done_msg")); } else Dialogs.ShowError(I18n.T("generic_error_title"), I18n.T("see_log_file_msg"));
                 RefreshGames();
             };
             btnFolder.Click += (s, e) =>
@@ -1490,7 +1490,7 @@ namespace UninstallerPro
                 var ext = _gridExt.SelectedItem as BrowserExtension; if (ext == null) return;
                 if (!Dialogs.Confirm(I18n.T("confirm_remove_ext_title"), string.Format(I18n.T("confirm_remove_ext_msg"), ext.Name, ext.Browser))) return;
                 bool ok = ExtensionsData.RemoveExtension(ext);
-                if (ok) { Stats.Add(d => d.ExtensionsRemoved++); Dialogs.Info(I18n.T("generic_done_title"), I18n.T("fix_done_msg")); } else Dialogs.ShowError(I18n.T("generic_error_title"), "See log file.");
+                if (ok) { Stats.Add(d => d.ExtensionsRemoved++); Dialogs.Info(I18n.T("generic_done_title"), I18n.T("fix_done_msg")); } else Dialogs.ShowError(I18n.T("generic_error_title"), I18n.T("see_log_file_msg"));
                 RefreshExtensions();
             };
 
@@ -1505,7 +1505,7 @@ namespace UninstallerPro
                     if (ExtensionsData.RemoveExtension(ext)) removed++;
                 }
                 if (removed > 0) Stats.Add(d => d.ExtensionsRemoved += removed);
-                if (removed < chosen.Count) Dialogs.ShowError(I18n.T("generic_error_title"), "See log file.");
+                if (removed < chosen.Count) Dialogs.ShowError(I18n.T("generic_error_title"), I18n.T("see_log_file_msg"));
                 else Dialogs.Info(I18n.T("generic_done_title"), I18n.T("fix_done_msg"));
                 RefreshExtensions();
             };

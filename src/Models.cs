@@ -81,9 +81,9 @@ namespace UninstallerPro
             {
                 switch (Type)
                 {
-                    case ResidualType.Registry: return "רישום";
-                    case ResidualType.Shortcut: return "קיצור דרך";
-                    default: return "תיקייה";
+                    case ResidualType.Registry: return I18n.T("residual_type_registry");
+                    case ResidualType.Shortcut: return I18n.T("residual_type_shortcut");
+                    default: return I18n.T("residual_type_folder");
                 }
             }
         }
@@ -172,7 +172,7 @@ namespace UninstallerPro
             get { return Type == StartupType.Folder ? System.IO.Path.GetFileNameWithoutExtension(FolderPath ?? "") : ValueName; }
         }
 
-        public string StatusText { get { return Enabled ? "פעיל" : "מושבת"; } }
+        public string StatusText { get { return Enabled ? I18n.T("status_enabled") : I18n.T("status_disabled"); } }
 
         // אימות חתימה דיגיטלית של קובץ ה-exe שמופעל בהפעלה אוטומטית - נבדק
         // ב-StartupData מול תעודת Authenticode אמיתית של Windows, לא היוריסטיקה.

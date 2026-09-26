@@ -94,7 +94,7 @@ namespace UninstallerPro
 
             if (!string.IsNullOrEmpty(installLocation) && Directory.Exists(installLocation) && !SafetyGuard.IsProtectedPath(installLocation))
             {
-                items.Add(new ResidualItem { Type = ResidualType.Folder, Path = installLocation, DisplayPath = installLocation, Reason = "תיקיית ההתקנה המקורית" });
+                items.Add(new ResidualItem { Type = ResidualType.Folder, Path = installLocation, DisplayPath = installLocation, Reason = I18n.T("residual_reason_install_folder") });
             }
 
             foreach (var root in ResidualScanRoots())
@@ -108,7 +108,7 @@ namespace UninstallerPro
                     var m = NameMatcher.TestNameMatch(name, displayName, nameTokens);
                     if (m != null)
                     {
-                        items.Add(new ResidualItem { Type = ResidualType.Folder, Path = c, DisplayPath = c, Reason = m + " (תחת " + root.Item2 + ")" });
+                        items.Add(new ResidualItem { Type = ResidualType.Folder, Path = c, DisplayPath = c, Reason = string.Format(I18n.T("residual_reason_under_root"), m, root.Item2) });
                         continue;
                     }
                     if (NameMatcher.TestPublisherMatch(name, pubTokens))
@@ -120,7 +120,7 @@ namespace UninstallerPro
                             if (SafetyGuard.IsProtectedPath(g)) continue;
                             var gName = Path.GetFileName(g);
                             var m2 = NameMatcher.TestNameMatch(gName, displayName, nameTokens);
-                            if (m2 != null) items.Add(new ResidualItem { Type = ResidualType.Folder, Path = g, DisplayPath = g, Reason = m2 + " (תחת יצרן " + name + " / " + root.Item2 + ")" });
+                            if (m2 != null) items.Add(new ResidualItem { Type = ResidualType.Folder, Path = g, DisplayPath = g, Reason = string.Format(I18n.T("residual_reason_under_publisher"), m2, name, root.Item2) });
                         }
                     }
                 }
@@ -130,7 +130,7 @@ namespace UninstallerPro
                 {
                     var baseName = Path.GetFileNameWithoutExtension(s);
                     var m = NameMatcher.TestNameMatch(baseName, displayName, nameTokens);
-                    if (m != null) items.Add(new ResidualItem { Type = ResidualType.Shortcut, Path = s, DisplayPath = s, Reason = m + " (קיצור דרך)" });
+                    if (m != null) items.Add(new ResidualItem { Type = ResidualType.Shortcut, Path = s, DisplayPath = s, Reason = string.Format(I18n.T("residual_reason_shortcut"), m) });
                 }
             }
 
@@ -152,7 +152,7 @@ namespace UninstallerPro
                             if (m != null)
                             {
                                 var fullPath = ur.Item2 + "\\" + subName;
-                                items.Add(new ResidualItem { Type = ResidualType.Registry, Hive = ur.Item1, SubKeyPath = fullPath, Path = fullPath, DisplayPath = HiveName(ur.Item1) + "\\" + fullPath, Reason = m + " (ערך הסרה)" });
+                                items.Add(new ResidualItem { Type = ResidualType.Registry, Hive = ur.Item1, SubKeyPath = fullPath, Path = fullPath, DisplayPath = HiveName(ur.Item1) + "\\" + fullPath, Reason = string.Format(I18n.T("residual_reason_uninstall_entry"), m) });
                             }
                         }
                     }
@@ -180,7 +180,7 @@ namespace UninstallerPro
                         if (m != null)
                         {
                             var fullPath = sr.Item2 + "\\" + keyName;
-                            items.Add(new ResidualItem { Type = ResidualType.Registry, Hive = sr.Item1, SubKeyPath = fullPath, Path = fullPath, DisplayPath = HiveName(sr.Item1) + "\\" + fullPath, Reason = m + " (מפתח תוכנה: " + HiveName(sr.Item1) + "\\" + sr.Item2 + ")" });
+                            items.Add(new ResidualItem { Type = ResidualType.Registry, Hive = sr.Item1, SubKeyPath = fullPath, Path = fullPath, DisplayPath = HiveName(sr.Item1) + "\\" + fullPath, Reason = string.Format(I18n.T("residual_reason_software_key"), m, HiveName(sr.Item1) + "\\" + sr.Item2) });
                         }
                     }
                 }

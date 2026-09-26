@@ -301,7 +301,7 @@ namespace UninstallerPro
                 catch (Exception ex) { Mouse.OverrideCursor = null; ShowError(I18n.T("scan_error_title"), string.Format(I18n.T("scan_error_msg"), ex.Message)); return; }
                 Mouse.OverrideCursor = null;
                 if (empties.Count == 0) { Info("", string.Format(I18n.T("empty_folder_none_found"), root)); return; }
-                var items = empties.Select(e => new ResidualItem { Type = ResidualType.Folder, Path = e, DisplayPath = e, Reason = "Empty (including empty subfolders)" }).ToList();
+                var items = empties.Select(e => new ResidualItem { Type = ResidualType.Folder, Path = e, DisplayPath = e, Reason = I18n.T("residual_reason_empty_folder") }).ToList();
                 ShowResidualPicker(items, string.Format(I18n.T("empty_folder_title_result"), root));
             }
         }
