@@ -460,6 +460,14 @@
   "tab_privacy": "Privacy",
   "privacy_tailored": "Tailored Experiences",
   "btn_toggle_startup": "Enable/Disable",
+  "col_signature": "Digital Signature",
+  "sig_verified": "Verified publisher",
+  "sig_unsigned": "Unsigned",
+  "sig_unknown": "Not checked",
+  "btn_disable_selected_startup": "Disable Selected",
+  "confirm_disable_selected_startup_msg": "Disable {0} selected startup items? You can re-enable them anytime from this screen.",
+  "btn_remove_selected_ext": "Remove Selected",
+  "confirm_remove_selected_ext_msg": "Remove {0} selected extensions?\n\nImportant: close the browser first to avoid errors.",
   "onb_page_finish_body": "Head to Dashboard for your PC health score and guided wizards. You can change language, theme, and other settings anytime from Settings.",
   "winget_not_found_msg": "winget (Windows Package Manager) was not found on this system. It ships with Windows 11 and modern Windows 10 - install 'App Installer' from the Microsoft Store to enable this feature.",
   "phish_reason_embedded_credential": "Link hides its real destination behind an '@' trick",
@@ -563,5 +571,8 @@
   "enable_notifications_desc": "Small pop-up messages for things like a scheduled cleanup that just ran, or files that were auto-purged from quarantine.",
   "scheduled_cleanup_categories_desc": "Only checked categories are touched when the scheduled cleanup runs unattended. Everything else is left alone.",
   "show_system_components_tooltip": "Also list Windows components and drivers here, not just regular installed programs. These are riskier to remove.",
-  "onb_language_note": "You can change the display language anytime in Settings."
+  "onb_language_note": "You can change the display language anytime in Settings.",
+  "btn_remove_extension_tooltip": "Uninstall the selected browser extension from every profile it's installed in.",
+  "btn_remove_selected_ext_tooltip": "Remove every checked extension in one pass instead of one at a time.",
+  "col_ext_risk_tooltip": "Based on the permissions the extension asked for in its manifest. High/Medium means it can read pages, cookies, or browsing history - not a verdict that it's malicious, just worth a closer look if you don't recognize it."
 }

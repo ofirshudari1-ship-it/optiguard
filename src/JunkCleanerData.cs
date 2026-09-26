@@ -58,9 +58,14 @@ namespace UninstallerPro
             var winUpdate = new JunkCategory { Key = "win_update", Name = I18n.T("junk_win_update"), Paths = new List<string> { Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.Windows), @"SoftwareDistribution\Download") } };
             var thumbs = new JunkCategory { Key = "thumbnails", Name = I18n.T("junk_thumbnails"), Paths = new List<string> { Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), @"Microsoft\Windows\Explorer") } };
 
-            var chromeCache = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), @"Google\Chrome\User Data\Default\Cache");
-            var edgeCache = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), @"Microsoft\Edge\User Data\Default\Cache");
-            var browserCache = new JunkCategory { Key = "browser_cache", Name = I18n.T("junk_browser_cache"), Paths = new List<string> { chromeCache, edgeCache } };
+            // כל פרופיל (Default + Profile 1/2/...), לא רק "Default" - משתמשים
+            // עם כמה חשבונות Google/Microsoft נפרדים בדפדפן (נפוץ מאוד) שומרים
+            // מטמון עצום גם בפרופילים שאינם הראשי; ScanAll הקודם החמיץ אותם
+            // לגמרי (בדיקה מול ExtensionsData.GetChromiumExtensions מאשרת שאותה
+            // בעיה כבר טופלה שם אבל לא כאן).
+            var browserCache = new JunkCategory { Key = "browser_cache", Name = I18n.T("junk_browser_cache"), Paths = new List<string>() };
+            AddChromiumProfileCaches(browserCache.Paths, Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), @"Google\Chrome\User Data"));
+            AddChromiumProfileCaches(browserCache.Paths, Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), @"Microsoft\Edge\User Data"));
             var ffRoot = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), @"Mozilla\Firefox\Profiles");
             if (Directory.Exists(ffRoot))
             {
@@ -87,6 +92,33 @@ namespace UninstallerPro
             result.Add(thumbs);
             result.Add(prefetch);
             return result.Where(c => c.SizeBytes > 0 || c.IsRecycleBin).ToList();
+        }
+
+        // Cache + Code Cache + GPUCache לכל תת-תיקיית פרופיל Chromium (Default
+        // ותיקיות "Profile N") - Chromium שומר כמה תיקיות מטמון נפרדות בכל
+        // פרופיל, לא רק "Cache" אחת.
+        private static void AddChromiumProfileCaches(List<string> target, string userDataPath)
+        {
+            if (!Directory.Exists(userDataPath)) return;
+            IEnumerable<string> profileDirs;
+            try
+            {
+                profileDirs = Directory.GetDirectories(userDataPath)
+                    .Where(p =>
+                    {
+                        var n = Path.GetFileName(p);
+                        return n == "Default" || System.Text.RegularExpressions.Regex.IsMatch(n, @"^Profile \d+$");
+                    });
+            }
+            catch { return; }
+            foreach (var prof in profileDirs)
+            {
+                foreach (var sub in new[] { "Cache", "Code Cache", "GPUCache" })
+                {
+                    var p = Path.Combine(prof, sub);
+                    if (Directory.Exists(p)) target.Add(p);
+                }
+            }
         }
 
         private static long GetRecycleBinSize()

@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Security.Cryptography.X509Certificates;
 using Microsoft.Win32;
 
 namespace UninstallerPro
@@ -87,7 +88,45 @@ namespace UninstallerPro
             }
             catch { }
 
+            foreach (var item in result)
+            {
+                try { ComputeSignature(item); } catch { item.SignatureStatus = "unknown"; }
+            }
+
             return result.OrderBy(i => i.Type).ThenBy(i => i.DisplayName, StringComparer.CurrentCultureIgnoreCase).ToList();
+        }
+
+        // בודק חתימת Authenticode אמיתית של Windows על קובץ ה-exe שמופעל -
+        // לא היוריסטיקה/רשימה שחורה. תוכנה חתומה כדין (גם אם לא Microsoft)
+        // מסומנת "signed" עם שם המפרסם; קובץ .exe קיים בלי חתימה תקינה
+        // מסומן "unsigned" (עדיין לא "מסוכן" - יש הרבה תוכנה לגיטימית לא
+        // חתומה); קובץ שלא נמצא/לא ניתן לזיהוי מסומן "unknown".
+        private static void ComputeSignature(StartupItem item)
+        {
+            var exePath = CommandLineUtil.ExtractExePath(item.Command);
+            if (string.IsNullOrWhiteSpace(exePath)) { item.SignatureStatus = "unknown"; return; }
+            try { exePath = Environment.ExpandEnvironmentVariables(exePath); } catch { }
+            if (!File.Exists(exePath)) { item.SignatureStatus = "unknown"; return; }
+            try
+            {
+                using (var cert = new X509Certificate2(X509Certificate.CreateFromSignedFile(exePath)))
+                {
+                    item.SignatureStatus = "signed";
+                    item.SignaturePublisher = ParseCertSubjectName(cert.Subject);
+                }
+            }
+            catch
+            {
+                item.SignatureStatus = "unsigned";
+            }
+        }
+
+        private static string ParseCertSubjectName(string subject)
+        {
+            if (string.IsNullOrEmpty(subject)) return null;
+            var part = subject.Split(',').FirstOrDefault(p => p.TrimStart().StartsWith("CN=", StringComparison.OrdinalIgnoreCase));
+            if (part == null) return null;
+            return part.TrimStart().Substring(3).Trim('"', ' ');
         }
 
         public static void Disable(StartupItem item)

@@ -113,6 +113,10 @@ namespace UninstallerPro
         public string Path { get; set; }
         public string ExtensionsJsonPath { get; set; } // Firefox only
 
+        // סימון עבור הסרה מרוכזת (batch) של כמה תוספים בבת אחת - עקבי עם
+        // הדפוס הקיים ב-IsSelected של InstalledProgram/DuplicateFile.
+        public bool IsSelected { get; set; }
+
         // כאשר אותו תוסף מותקן במספר פרופילים, הם מאוחדים לשורה אחת -
         // ProfileEntries מחזיק את כל (פרופיל, נתיב, קובץ-json) לצורך הסרה מלאה.
         public System.Collections.Generic.List<BrowserExtension> ProfileEntries { get; set; }
@@ -160,12 +164,36 @@ namespace UninstallerPro
         public string FolderPath { get; set; }
         public string BookmarkSubKey { get; set; } // when disabled, id under our bookkeeping key
 
+        // Bulk-selection checkbox in the Startup grid (mirrors InstalledProgram.IsSelected).
+        public bool IsSelected { get; set; }
+
         public string DisplayName
         {
             get { return Type == StartupType.Folder ? System.IO.Path.GetFileNameWithoutExtension(FolderPath ?? "") : ValueName; }
         }
 
         public string StatusText { get { return Enabled ? "פעיל" : "מושבת"; } }
+
+        // אימות חתימה דיגיטלית של קובץ ה-exe שמופעל בהפעלה אוטומטית - נבדק
+        // ב-StartupData מול תעודת Authenticode אמיתית של Windows, לא היוריסטיקה.
+        // "unknown" = קובץ לא נמצא/לא ניתן לבדיקה (למשל פקודת מערכת בלי exe
+        // ברור) - לעולם לא מוצג כ"לא בטוח", רק כ"לא זוהה", בהתאם לעקרון
+        // "ראיות, לא הפחדות" של הכלי.
+        public string SignatureStatus { get; set; } // "signed" / "unsigned" / "unknown"
+        public string SignaturePublisher { get; set; }
+
+        public string SignatureText
+        {
+            get
+            {
+                switch (SignatureStatus)
+                {
+                    case "signed": return string.IsNullOrEmpty(SignaturePublisher) ? I18n.T("sig_verified") : SignaturePublisher;
+                    case "unsigned": return I18n.T("sig_unsigned");
+                    default: return I18n.T("sig_unknown");
+                }
+            }
+        }
     }
 
     public enum WizardKind { Junk, BrokenStartup, EmptyFolder }

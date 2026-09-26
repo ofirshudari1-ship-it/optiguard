@@ -202,6 +202,28 @@ namespace UninstallerPro
         }
     }
 
+    // מיצוי נתיב ה-exe מתוך שורת פקודה (עם/בלי מרכאות, עם/בלי ארגומנטים) -
+    // אותה לוגיקה שכבר קיימת פרטית ב-RegistryCleanerData/SmartWizard, כאן
+    // כשירות משותפת חדשה לשימוש נוסף (StartupData) בלי לגעת בשני המקומות
+    // הקיימים ולהוסיף סיכון שינוי לקוד עובד.
+    public static class CommandLineUtil
+    {
+        public static string ExtractExePath(string command)
+        {
+            if (string.IsNullOrWhiteSpace(command)) return null;
+            command = command.Trim();
+            if (command.StartsWith("\""))
+            {
+                int end = command.IndexOf('"', 1);
+                return end > 0 ? command.Substring(1, end - 1) : null;
+            }
+            int exeIdx = command.IndexOf(".exe", StringComparison.OrdinalIgnoreCase);
+            if (exeIdx > 0) return command.Substring(0, exeIdx + 4);
+            var firstToken = command.Split(' ')[0];
+            return string.IsNullOrWhiteSpace(firstToken) ? null : firstToken;
+        }
+    }
+
     public static class RegistryUtil
     {
         public static RegistryKey OpenBase(RegistryHive hive)

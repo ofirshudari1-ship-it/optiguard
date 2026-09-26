@@ -787,6 +787,16 @@ namespace UninstallerPro
             return new DataGridTemplateColumn { Header = "", CellTemplate = template, Width = new DataGridLength(36) };
         }
 
+        // עמודות שהמשמעות שלהן לא מובנת מאליה מהכותרת בלבד (למשל "סיכון" או
+        // "חתימה דיגיטלית") מקבלות tooltip על כותרת העמודה עצמה - עקבי עם
+        // הדרישה שכל אפשרות בכלי הזה מוסברת, לא רק מוצגת.
+        private static Style MakeTooltipHeaderStyle(string tooltip)
+        {
+            var style = new Style(typeof(System.Windows.Controls.Primitives.DataGridColumnHeader), (Style)Theme.GetStyle("ModernColumnHeaderStyle"));
+            style.Setters.Add(new Setter(FrameworkElement.ToolTipProperty, tooltip));
+            return style;
+        }
+
         // ---------------------------------------------------------------
         // Dashboard
         // ---------------------------------------------------------------
@@ -1458,12 +1468,20 @@ namespace UninstallerPro
             var bottom = BottomBar();
             DockPanel.SetDock(bottom, Dock.Bottom);
             var btnRemove = MakeButton(I18n.T("btn_remove_extension"), "DangerButtonStyle", 140);
+            btnRemove.ToolTip = I18n.T("btn_remove_extension_tooltip");
+            var btnRemoveSelected = MakeButton(I18n.T("btn_remove_selected_ext"), "DangerButtonStyle", 160);
+            btnRemoveSelected.ToolTip = I18n.T("btn_remove_selected_ext_tooltip");
             var btnRefresh = MakeButton(I18n.T("btn_refresh"), "GhostButtonStyle", 90);
             bottom.Children.Add(btnRemove);
+            bottom.Children.Add(btnRemoveSelected);
             bottom.Children.Add(btnRefresh);
             dock.Children.Add(bottom);
 
             _gridExt = CreateGrid(Tuple.Create(I18n.T("col_browser"), "Browser", 1.0), Tuple.Create(I18n.T("col_profiles"), "ProfilesText", 1.3), Tuple.Create(I18n.T("col_name"), "Name", 2.5), Tuple.Create(I18n.T("col_version"), "Version", 1.0), Tuple.Create(I18n.T("col_ext_risk"), "RiskLevelText", 1.0));
+            _gridExt.Columns.Insert(0, CreateCheckboxColumn("IsSelected"));
+            // עמודת הסיכון האחרונה כוללת tooltip על הכותרת עצמה - מסביר מה
+            // "high/medium/low/unknown" אומר בפועל, לא רק תווית בלי הקשר.
+            _gridExt.Columns[_gridExt.Columns.Count - 1].HeaderStyle = MakeTooltipHeaderStyle(I18n.T("col_ext_risk_tooltip"));
             dock.Children.Add(_gridExt);
 
             btnRefresh.Click += (s, e) => RefreshExtensions();
@@ -1473,6 +1491,22 @@ namespace UninstallerPro
                 if (!Dialogs.Confirm(I18n.T("confirm_remove_ext_title"), string.Format(I18n.T("confirm_remove_ext_msg"), ext.Name, ext.Browser))) return;
                 bool ok = ExtensionsData.RemoveExtension(ext);
                 if (ok) { Stats.Add(d => d.ExtensionsRemoved++); Dialogs.Info(I18n.T("generic_done_title"), I18n.T("fix_done_msg")); } else Dialogs.ShowError(I18n.T("generic_error_title"), "See log file.");
+                RefreshExtensions();
+            };
+
+            btnRemoveSelected.Click += (s, e) =>
+            {
+                var chosen = _extensions.Where(x => x.IsSelected).ToList();
+                if (chosen.Count == 0) { Dialogs.Info("", I18n.T("no_items_selected")); return; }
+                if (!Dialogs.Confirm(I18n.T("confirm_remove_ext_title"), string.Format(I18n.T("confirm_remove_selected_ext_msg"), chosen.Count))) return;
+                int removed = 0;
+                foreach (var ext in chosen)
+                {
+                    if (ExtensionsData.RemoveExtension(ext)) removed++;
+                }
+                if (removed > 0) Stats.Add(d => d.ExtensionsRemoved += removed);
+                if (removed < chosen.Count) Dialogs.ShowError(I18n.T("generic_error_title"), "See log file.");
+                else Dialogs.Info(I18n.T("generic_done_title"), I18n.T("fix_done_msg"));
                 RefreshExtensions();
             };
 
@@ -1523,14 +1557,22 @@ namespace UninstallerPro
             var bottom = BottomBar();
             DockPanel.SetDock(bottom, Dock.Bottom);
             var btnToggle = MakeButton(I18n.T("btn_toggle_startup"), "AccentButtonStyle", 140);
+            var btnDisableSelected = MakeButton(I18n.T("btn_disable_selected_startup"), "DangerButtonStyle", 190);
             var btnDelete = MakeButton(I18n.T("btn_delete_permanent"), "DangerButtonStyle", 150);
             var btnRefresh = MakeButton(I18n.T("btn_refresh"), "GhostButtonStyle", 90);
             bottom.Children.Add(btnToggle);
+            bottom.Children.Add(btnDisableSelected);
             bottom.Children.Add(btnDelete);
             bottom.Children.Add(btnRefresh);
             dock.Children.Add(bottom);
 
-            _gridStartup = CreateGrid(Tuple.Create(I18n.T("col_status"), "StatusText", 0.7), Tuple.Create(I18n.T("col_name"), "DisplayName", 1.5), Tuple.Create(I18n.T("col_location"), "Location", 1.5), Tuple.Create(I18n.T("col_command"), "Command", 3.0));
+            // עמודת חתימה דיגיטלית (Authenticode אמיתי, לא היוריסטיקה) לצד
+            // השם - עוזרת למשתמש להבחין בין תוכנה מאומתת לבין exe לא-חתום
+            // שמופעל עם Windows, בלי לתת ציון "מסוכן" מפחיד (בהתאם לעקרון
+            // "ראיות לא הפחדות" המתועד ב-SPEC.md).
+            _gridStartup = CreateGrid(Tuple.Create(I18n.T("col_status"), "StatusText", 0.7), Tuple.Create(I18n.T("col_name"), "DisplayName", 1.4), Tuple.Create(I18n.T("col_signature"), "SignatureText", 1.3), Tuple.Create(I18n.T("col_location"), "Location", 1.3), Tuple.Create(I18n.T("col_command"), "Command", 2.6));
+            // עמודת סימון לבחירה מרוכזת - עקבי עם התוכנות/עדכונים/רישום.
+            _gridStartup.Columns.Insert(0, CreateCheckboxColumn("IsSelected"));
             dock.Children.Add(_gridStartup);
 
             btnRefresh.Click += (s, e) => RefreshStartup();
@@ -1538,6 +1580,15 @@ namespace UninstallerPro
             {
                 var it = _gridStartup.SelectedItem as StartupItem; if (it == null) return;
                 if (it.Enabled) { StartupData.Disable(it); Stats.Add(d => d.StartupItemsCleaned++); } else StartupData.Enable(it);
+                RefreshStartup();
+            };
+            btnDisableSelected.Click += (s, e) =>
+            {
+                var chosen = _startupItems.Where(x => x.IsSelected && x.Enabled).ToList();
+                if (chosen.Count == 0) { Dialogs.Info("", I18n.T("no_items_selected")); return; }
+                if (!Dialogs.Confirm(I18n.T("btn_disable_selected_startup"), string.Format(I18n.T("confirm_disable_selected_startup_msg"), chosen.Count))) return;
+                foreach (var it in chosen) { try { StartupData.Disable(it); } catch (Exception ex) { Logger.Log("שגיאה בהשבתת פריט הפעלה " + it.DisplayName + ": " + ex.Message); } }
+                Stats.Add(d => d.StartupItemsCleaned += chosen.Count);
                 RefreshStartup();
             };
             btnDelete.Click += (s, e) =>

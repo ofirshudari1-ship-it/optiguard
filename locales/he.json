@@ -406,7 +406,7 @@
   "global_hunter": "ציד שאריות...",
   "btn_more_actions": "עוד",
   "wizard_no_issues": "מצוין - לא נמצאו בעיות. המערכת נראית נקייה!",
-  "theme_select_label": "בחר מוטיבציה:",
+  "theme_select_label": "בחר ערכת נושא:",
   "cat_games": "משחקים ולאונצ'רים",
   "health_issue_junk_medium": "הצטבר קצת זבל",
   "phish_reason_suspicious_tld": "הקישור משתמש בסיומת דומיין שנוצלה לרעה לעתים קרובות לפישינג",
@@ -460,6 +460,14 @@
   "tab_privacy": "פרטיות",
   "privacy_tailored": "חוויות מותאמות אישית",
   "btn_toggle_startup": "הפעל/השבת",
+  "col_signature": "חתימה דיגיטלית",
+  "sig_verified": "מפרסם מאומת",
+  "sig_unsigned": "לא חתום",
+  "sig_unknown": "לא נבדק",
+  "btn_disable_selected_startup": "השבת נבחרים",
+  "confirm_disable_selected_startup_msg": "להשבית {0} פריטי הפעלה אוטומטית שנבחרו? אפשר להפעיל אותם בחזרה בכל שלב מהמסך הזה.",
+  "btn_remove_selected_ext": "הסר נבחרים",
+  "confirm_remove_selected_ext_msg": "להסיר {0} תוספים שנבחרו?\n\nחשוב: לסגור את הדפדפן קודם כדי למנוע שגיאות.",
   "onb_page_finish_body": "עבור ל-Dashboard לציון בריאות המחשב ואשפים מונחים. ניתן לשנות שפה, ערכת נושא והגדרות נוספות בכל עת דרך ההגדרות.",
   "winget_not_found_msg": "winget (מנהל החבילות של Windows) לא נמצא במערכת זו. הוא מגיע מובנה עם Windows 11 וגרסאות עדכניות של Windows 10 - התקן 'App Installer' מחנות Microsoft Store כדי להפעיל את התכונה הזו.",
   "phish_reason_embedded_credential": "הקישור מסתיר את היעד האמיתי שלו מאחורי טריק '@'",
@@ -563,5 +571,8 @@
   "enable_notifications_desc": "הודעות קופצות קטנות על דברים כמו ניקוי מתוזמן שרץ עכשיו, או קבצים שנמחקו אוטומטית מההסגר.",
   "scheduled_cleanup_categories_desc": "רק הקטגוריות המסומנות ייכללו כשהניקוי המתוזמן רץ ללא השגחה. שאר הקטגוריות נשארות כמו שהן.",
   "show_system_components_tooltip": "הצג כאן גם רכיבי Windows ודרייברים, לא רק תוכנות רגילות שהותקנו. אלה מסוכנים יותר להסרה.",
-  "onb_language_note": "אפשר לשנות את שפת התצוגה בכל עת בהגדרות."
+  "onb_language_note": "אפשר לשנות את שפת התצוגה בכל עת בהגדרות.",
+  "btn_remove_extension_tooltip": "מסיר את התוסף הנבחר מכל הפרופילים שבהם הוא מותקן.",
+  "btn_remove_selected_ext_tooltip": "מסיר בבת אחת את כל התוספים שסומנו, במקום אחד אחד.",
+  "col_ext_risk_tooltip": "מבוסס על ההרשאות שהתוסף ביקש בקובץ המניפסט שלו. סיכון גבוה/בינוני אומר שהוא יכול לקרוא דפים, עוגיות או היסטוריית גלישה, זו לא קביעה שהוא זדוני, רק סיבה טובה להסתכל מקרוב אם אינך מזהה אותו."
 }
