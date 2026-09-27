@@ -118,9 +118,14 @@ namespace UninstallerPro
         // section is reached through a plain-text sub-navigation strip
         // instead (see BuildSubNavStrip), since it doesn't need its own icon
         // once you're already inside the right section.
+        // v4.21: these used to be emoji glyphs ("⚙" etc.) - now keys into
+        // Icons.Make, a small hand-drawn vector icon set (see src/Icons.cs)
+        // that stays crisp at any size, matches the active theme's exact
+        // colors (including High Contrast), and doesn't depend on whichever
+        // emoji font happens to be installed on the user's Windows version.
         private static readonly Dictionary<string, string> NavIcons = new Dictionary<string, string>
         {
-            { "settings", "⚙" },
+            { "settings", "gear" },
         };
 
         // Metadata for the 4 consolidated top-level sections. Icon reused
@@ -129,16 +134,17 @@ namespace UninstallerPro
         private class GroupMeta { public string LabelKey; public string DescKey; public string Icon; }
         private static readonly Dictionary<string, GroupMeta> NavGroups = new Dictionary<string, GroupMeta>
         {
-            { "grp_overview", new GroupMeta { LabelKey = "nav_group_overview", DescKey = "nav_group_overview_desc", Icon = "🏠" } },
-            { "grp_apps", new GroupMeta { LabelKey = "nav_group_apps", DescKey = "nav_group_apps_desc", Icon = "📦" } },
-            { "grp_cleanup", new GroupMeta { LabelKey = "nav_group_cleanup", DescKey = "nav_group_cleanup_desc", Icon = "🧹" } },
-            { "grp_security", new GroupMeta { LabelKey = "nav_group_security", DescKey = "nav_group_security_desc", Icon = "🛡" } },
+            { "grp_overview", new GroupMeta { LabelKey = "nav_group_overview", DescKey = "nav_group_overview_desc", Icon = "home" } },
+            { "grp_apps", new GroupMeta { LabelKey = "nav_group_apps", DescKey = "nav_group_apps_desc", Icon = "apps" } },
+            { "grp_cleanup", new GroupMeta { LabelKey = "nav_group_cleanup", DescKey = "nav_group_cleanup_desc", Icon = "cleanup" } },
+            { "grp_security", new GroupMeta { LabelKey = "nav_group_security", DescKey = "nav_group_security_desc", Icon = "shield" } },
         };
 
         private List<NavEntry> _navEntries;
         private Dictionary<string, Border> _navButtons = new Dictionary<string, Border>();
         private Dictionary<string, TextBlock> _navLabels = new Dictionary<string, TextBlock>();
         private Dictionary<string, TextBlock> _navDescLabels = new Dictionary<string, TextBlock>();
+        private Dictionary<string, UIElement> _navIcons = new Dictionary<string, UIElement>();
         private string _currentNavKey;
         // Group-level state for the consolidated navigation: which section is
         // currently highlighted in the sidebar, which leaf tab was last shown
@@ -150,6 +156,7 @@ namespace UninstallerPro
         private Dictionary<string, UIElement> _groupSubNavStrips = new Dictionary<string, UIElement>();
         private Dictionary<string, Border> _subNavButtons = new Dictionary<string, Border>();
         private Dictionary<string, TextBlock> _subNavLabels = new Dictionary<string, TextBlock>();
+        private Dictionary<string, Border> _subNavUnderlines = new Dictionary<string, Border>();
         private ContentControl _subNavHost;
         private ContentControl _contentHost;
         private Action _refreshDashboard;
@@ -426,7 +433,8 @@ namespace UninstallerPro
             var row = new DockPanel();
             banner.Child = row;
 
-            var btnDismiss = MakeButton("✕", "GhostButtonStyle", 32);
+            var btnDismiss = MakeButton("", "GhostButtonStyle", 32);
+            btnDismiss.Content = Icons.Make("close", 12, Theme.Get("TextBrush"));
             btnDismiss.Height = 28;
             AutomationProperties.SetName(btnDismiss, I18n.T("btn_close"));
             DockPanel.SetDock(btnDismiss, Dock.Right);
@@ -590,8 +598,8 @@ namespace UninstallerPro
             stack.Children.Add(logoImg);
 
             var titleStack = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
-            titleStack.Children.Add(new TextBlock { Text = I18n.T("app_name"), Foreground = Theme.Get("HeaderTextBrush"), FontSize = 18, FontWeight = FontWeights.Bold });
-            titleStack.Children.Add(new TextBlock { Text = I18n.T("app_tagline"), Foreground = Theme.Get("HeaderSubTextBrush"), FontSize = 11 });
+            titleStack.Children.Add(new TextBlock { Text = I18n.T("app_name"), Foreground = Theme.Get("HeaderTextBrush"), FontSize = Theme.FontTitle + 3, FontWeight = FontWeights.Bold });
+            titleStack.Children.Add(new TextBlock { Text = I18n.T("app_tagline"), Foreground = Theme.Get("HeaderSubTextBrush"), FontSize = Theme.FontCaption });
             stack.Children.Add(titleStack);
 
             dock.Children.Add(stack);
@@ -603,10 +611,10 @@ namespace UninstallerPro
             var footer = new Border { Background = Theme.Get("BgBrush"), Height = 24 };
             DockPanel.SetDock(footer, Dock.Bottom);
             var footerDock = new DockPanel();
-            var hint = new TextBlock { Text = I18n.T("cmdpalette_placeholder"), Foreground = Theme.Get("TextMutedBrush"), FontSize = 10.5, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(14,0,14,0) };
+            var hint = new TextBlock { Text = I18n.T("cmdpalette_placeholder"), Foreground = Theme.Get("TextMutedBrush"), FontSize = Theme.FontCaption - 0.5, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(14,0,14,0) };
             DockPanel.SetDock(hint, Dock.Right);
             footerDock.Children.Add(hint);
-            var txt = new TextBlock { Text = I18n.T("copyright"), Foreground = Theme.Get("TextMutedBrush"), FontSize = 10.5, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center };
+            var txt = new TextBlock { Text = I18n.T("copyright"), Foreground = Theme.Get("TextMutedBrush"), FontSize = Theme.FontCaption - 0.5, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center };
             footerDock.Children.Add(txt);
             footer.Child = footerDock;
             return footer;
@@ -617,6 +625,12 @@ namespace UninstallerPro
             var border = new Border { Background = Theme.Get("PanelBrush"), Width = 232 };
             border.BorderBrush = Theme.Get("BorderColorBrush");
             border.BorderThickness = new Thickness(0,0,1,0);
+            // A faint horizontal elevation shadow, rather than only the 1px
+            // border, is what actually reads as "the sidebar sits above the
+            // content" in a flat-design UI - depth from light, not from a
+            // second flat line. Skipped in High Contrast (CardShadow already
+            // returns null there).
+            border.Effect = Theme.CardShadow(_settings.Theme);
             DockPanel.SetDock(border, Dock.Left);
 
             var sidebarDock = new DockPanel();
@@ -668,14 +682,18 @@ namespace UninstallerPro
                 Focusable = true, SnapsToDevicePixels = true
             };
             var row = new StackPanel { Orientation = Orientation.Horizontal };
-            row.Children.Add(new TextBlock { Text = meta.Icon, FontSize = 18, Margin = new Thickness(0,0,12,0), VerticalAlignment = VerticalAlignment.Center });
+            var icon = (FrameworkElement)Icons.Make(meta.Icon, 20, Theme.Get("TextBrush"));
+            icon.Margin = new Thickness(0, 0, Theme.Space2 + 4, 0);
+            icon.VerticalAlignment = VerticalAlignment.Center;
+            row.Children.Add(icon);
             var textCol = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
-            var titleText = new TextBlock { Text = I18n.T(meta.LabelKey), FontSize = 14.5, FontWeight = FontWeights.SemiBold, Foreground = Theme.Get("TextBrush") };
-            var descText = new TextBlock { Text = I18n.T(meta.DescKey), FontSize = 10.5, Foreground = Theme.Get("TextMutedBrush"), TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0,2,0,0) };
+            var titleText = new TextBlock { Text = I18n.T(meta.LabelKey), FontSize = Theme.FontSubtitle + 1, FontWeight = FontWeights.SemiBold, Foreground = Theme.Get("TextBrush") };
+            var descText = new TextBlock { Text = I18n.T(meta.DescKey), FontSize = Theme.FontCaption - 0.5, Foreground = Theme.Get("TextMutedBrush"), TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0,2,0,0) };
             textCol.Children.Add(titleText);
             textCol.Children.Add(descText);
             row.Children.Add(textCol);
             border.Child = row;
+            _navIcons[groupKey] = icon;
 
             // Same explicit keyboard/Narrator wiring as every other custom-
             // drawn nav control in this window (section 18.2) - this Border
@@ -688,8 +706,8 @@ namespace UninstallerPro
             };
             border.GotKeyboardFocus += (s, e) => border.BorderBrush = Theme.Get("AccentBrush");
             border.LostKeyboardFocus += (s, e) => border.BorderBrush = Brushes.Transparent;
-            border.MouseEnter += (s, e) => { if (_currentGroupKey != groupKey) { border.Background = Theme.Get("HoverBgBrush"); titleText.Foreground = Theme.Get("HoverTextBrush"); } };
-            border.MouseLeave += (s, e) => { if (_currentGroupKey != groupKey) { border.Background = Brushes.Transparent; titleText.Foreground = Theme.Get("TextBrush"); } };
+            border.MouseEnter += (s, e) => { if (_currentGroupKey != groupKey) { border.Background = Theme.Get("HoverBgBrush"); titleText.Foreground = Theme.Get("HoverTextBrush"); Icons.Recolor(icon, Theme.Get("HoverTextBrush")); } };
+            border.MouseLeave += (s, e) => { if (_currentGroupKey != groupKey) { border.Background = Brushes.Transparent; titleText.Foreground = Theme.Get("TextBrush"); Icons.Recolor(icon, Theme.Get("TextBrush")); } };
             _navButtons[groupKey] = border;
             _navLabels[groupKey] = titleText;
             _navDescLabels[groupKey] = descText;
@@ -718,12 +736,17 @@ namespace UninstallerPro
                 Focusable = true, SnapsToDevicePixels = true
             };
             var row = new StackPanel { Orientation = Orientation.Horizontal };
-            string icon;
-            if (NavIcons.TryGetValue(entry.Key, out icon))
+            string iconKey;
+            UIElement iconEl = null;
+            if (NavIcons.TryGetValue(entry.Key, out iconKey))
             {
-                row.Children.Add(new TextBlock { Text = icon, FontSize = 13.5, Margin = new Thickness(0,0,8,0), VerticalAlignment = VerticalAlignment.Center });
+                iconEl = Icons.Make(iconKey, 16, Theme.Get("TextBrush"));
+                ((FrameworkElement)iconEl).Margin = new Thickness(0, 0, Theme.Space2, 0);
+                ((FrameworkElement)iconEl).VerticalAlignment = VerticalAlignment.Center;
+                row.Children.Add(iconEl);
+                _navIcons[entry.Key] = iconEl;
             }
-            var text = new TextBlock { Text = I18n.T(entry.LabelKey), FontSize = 13.5, Foreground = Theme.Get("TextBrush"), VerticalAlignment = VerticalAlignment.Center };
+            var text = new TextBlock { Text = I18n.T(entry.LabelKey), FontSize = Theme.FontSubtitle, Foreground = Theme.Get("TextBrush"), VerticalAlignment = VerticalAlignment.Center };
             row.Children.Add(text);
             border.Child = row;
 
@@ -744,8 +767,8 @@ namespace UninstallerPro
             };
             border.GotKeyboardFocus += (s, e) => border.BorderBrush = Theme.Get("AccentBrush");
             border.LostKeyboardFocus += (s, e) => border.BorderBrush = Brushes.Transparent;
-            border.MouseEnter += (s, e) => { if (_currentNavKey != entry.Key) { border.Background = Theme.Get("HoverBgBrush"); text.Foreground = Theme.Get("HoverTextBrush"); } };
-            border.MouseLeave += (s, e) => { if (_currentNavKey != entry.Key) { border.Background = Brushes.Transparent; text.Foreground = Theme.Get("TextBrush"); } };
+            border.MouseEnter += (s, e) => { if (_currentNavKey != entry.Key) { border.Background = Theme.Get("HoverBgBrush"); text.Foreground = Theme.Get("HoverTextBrush"); if (iconEl != null) Icons.Recolor(iconEl, Theme.Get("HoverTextBrush")); } };
+            border.MouseLeave += (s, e) => { if (_currentNavKey != entry.Key) { border.Background = Brushes.Transparent; text.Foreground = Theme.Get("TextBrush"); if (iconEl != null) Icons.Recolor(iconEl, Theme.Get("TextBrush")); } };
             _navButtons[entry.Key] = border;
             _navLabels[entry.Key] = text;
             return border;
@@ -762,7 +785,8 @@ namespace UninstallerPro
             var host = new Border
             {
                 Background = Theme.Get("PanelBrush"), BorderBrush = Theme.Get("BorderColorBrush"),
-                BorderThickness = new Thickness(0,0,0,1), Padding = new Thickness(18,10,18,10)
+                BorderThickness = new Thickness(0,0,0,1), Padding = new Thickness(18,10,18,10),
+                Effect = Theme.CardShadow(_settings.Theme)
             };
             var wrap = new WrapPanel();
             host.Child = wrap;
@@ -775,8 +799,18 @@ namespace UninstallerPro
                     Cursor = Cursors.Hand, Background = Brushes.Transparent, Focusable = true,
                     BorderThickness = new Thickness(1.5), BorderBrush = Brushes.Transparent
                 };
-                var text = new TextBlock { Text = I18n.T(child.LabelKey), FontSize = 13, Foreground = Theme.Get("TextBrush"), VerticalAlignment = VerticalAlignment.Center };
-                pill.Child = text;
+                var text = new TextBlock { Text = I18n.T(child.LabelKey), FontSize = Theme.FontBody, Foreground = Theme.Get("TextBrush"), VerticalAlignment = VerticalAlignment.Center, HorizontalAlignment = HorizontalAlignment.Center };
+                // Small accent underline peeking out just below the pill,
+                // shown only for whichever tab is currently active (set in
+                // NavigateTo) - a lightweight "you are here" cue for the one
+                // piece of chrome in this window that previously had none
+                // beyond a faint background tint.
+                var underline = new Border { Height = 3, VerticalAlignment = VerticalAlignment.Bottom, Margin = new Thickness(6,0,6,-8), CornerRadius = new CornerRadius(2), Background = Brushes.Transparent };
+                var pillGrid = new Grid();
+                pillGrid.Children.Add(text);
+                pillGrid.Children.Add(underline);
+                pill.Child = pillGrid;
+                _subNavUnderlines[child.Key] = underline;
 
                 AutomationProperties.SetName(pill, I18n.T(child.LabelKey));
                 var capturedKey = child.Key;
@@ -842,12 +876,19 @@ namespace UninstallerPro
             if (_currentGroupKey != null && _currentGroupKey != highlightKey && _navButtons.ContainsKey(_currentGroupKey))
             {
                 _navButtons[_currentGroupKey].Background = Brushes.Transparent;
+                _navButtons[_currentGroupKey].Effect = null;
                 _navLabels[_currentGroupKey].Foreground = Theme.Get("TextBrush");
                 _navLabels[_currentGroupKey].FontWeight = FontWeights.Normal;
                 if (_navDescLabels.ContainsKey(_currentGroupKey)) _navDescLabels[_currentGroupKey].Foreground = Theme.Get("TextMutedBrush");
+                if (_navIcons.ContainsKey(_currentGroupKey)) Icons.Recolor(_navIcons[_currentGroupKey], Theme.Get("TextBrush"));
             }
             _currentGroupKey = highlightKey;
             _navButtons[highlightKey].Background = Theme.Get("AccentBrush");
+            // Subtle elevation on whichever nav entry is currently active -
+            // a soft shadow that lifts it off the sidebar, on top of the
+            // solid accent fill it already had. Skipped in High Contrast:
+            // Theme.CardShadow already returns null there.
+            _navButtons[highlightKey].Effect = Theme.CardShadow(_settings.Theme);
             _navLabels[highlightKey].Foreground = Theme.Get("AccentTextBrush");
             _navLabels[highlightKey].FontWeight = FontWeights.SemiBold;
             // The description line under an active section button also
@@ -855,6 +896,7 @@ namespace UninstallerPro
             // TextMutedBrush is only guaranteed readable against the page
             // background, not against a solid accent fill.
             if (_navDescLabels.ContainsKey(highlightKey)) _navDescLabels[highlightKey].Foreground = Theme.Get("AccentTextBrush");
+            if (_navIcons.ContainsKey(highlightKey)) Icons.Recolor(_navIcons[highlightKey], Theme.Get("AccentTextBrush"));
 
             // Sub-navigation strip: shown only for a leaf inside a section
             // that actually has more than one tab - Settings and any
@@ -880,6 +922,7 @@ namespace UninstallerPro
                         _subNavButtons[sib.Key].Background = active ? Theme.Get("AccentLightBrush") : Brushes.Transparent;
                         _subNavLabels[sib.Key].Foreground = active ? Theme.Get("AccentBrush") : Theme.Get("TextBrush");
                         _subNavLabels[sib.Key].FontWeight = active ? FontWeights.SemiBold : FontWeights.Normal;
+                        if (_subNavUnderlines.ContainsKey(sib.Key)) _subNavUnderlines[sib.Key].Background = active ? Theme.Get("AccentBrush") : Brushes.Transparent;
                     }
                 }
                 else
@@ -926,6 +969,31 @@ namespace UninstallerPro
             return new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Left, Margin = new Thickness(14,8,14,14) };
         }
 
+        // A designed empty state (icon + one line of text) for a list/grid
+        // that currently has nothing to show - a scan that ran and found
+        // nothing, or results that were cleared. Centered, muted, and
+        // deliberately understated (it should read as "nothing here right
+        // now", not as an error) - a blank white/gray rectangle where a list
+        // used to be reads as broken, this reads as finished/clean.
+        private static UIElement BuildEmptyState(string iconKey, string text)
+        {
+            var stack = new StackPanel
+            {
+                HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Center,
+                Margin = new Thickness(Theme.Space4)
+            };
+            var icon = Icons.Make(iconKey, 40, Theme.Get("TextMutedBrush"));
+            ((FrameworkElement)icon).HorizontalAlignment = HorizontalAlignment.Center;
+            ((FrameworkElement)icon).Margin = new Thickness(0, 0, 0, Theme.Space2);
+            stack.Children.Add(icon);
+            stack.Children.Add(new TextBlock
+            {
+                Text = text, Foreground = Theme.Get("TextMutedBrush"), FontSize = Theme.FontBody,
+                TextWrapping = TextWrapping.Wrap, TextAlignment = TextAlignment.Center, MaxWidth = 320
+            });
+            return stack;
+        }
+
         // MinWidth, not Width: the button styles don't wrap or trim their text
         // (BaseButtonStyle's ContentPresenter has no TextWrapping/TextTrimming,
         // and a WPF Border with CornerRadius does not auto-clip its child on
@@ -945,7 +1013,14 @@ namespace UninstallerPro
         // כך שכל החיווט הקיים (שמתבצע בהמשך הקוד) ממשיך לעבוד ללא שינוי.
         private static Button MakeMoreMenuButton(params Button[] actions)
         {
-            var trigger = MakeButton("⋯ " + I18n.T("btn_more_actions"), "GhostButtonStyle", 90);
+            var trigger = MakeButton(I18n.T("btn_more_actions"), "GhostButtonStyle", 100);
+            var triggerContent = new StackPanel { Orientation = Orientation.Horizontal };
+            var moreIcon = Icons.Make("more", 14, Theme.Get("TextBrush"));
+            ((FrameworkElement)moreIcon).Margin = new Thickness(0, 0, Theme.Space1, 0);
+            ((FrameworkElement)moreIcon).VerticalAlignment = VerticalAlignment.Center;
+            triggerContent.Children.Add(moreIcon);
+            triggerContent.Children.Add(new TextBlock { Text = I18n.T("btn_more_actions"), VerticalAlignment = VerticalAlignment.Center });
+            trigger.Content = triggerContent;
             var menu = new ContextMenu { Background = Theme.Get("PanelBrush"), BorderBrush = Theme.Get("BorderColorBrush"), BorderThickness = new Thickness(1) };
             foreach (var action in actions)
             {
@@ -1048,10 +1123,11 @@ namespace UninstallerPro
             scoreBox.Children.Add(new TextBlock { Text = I18n.T("health_score_title"), FontSize = 10, Foreground = Theme.Get("TextMutedBrush"), HorizontalAlignment = HorizontalAlignment.Center });
             outer.Children.Add(scoreBox);
 
-            var btnRefreshScore = MakeButton("🔄", "GhostButtonStyle", 34);
+            var btnRefreshScore = MakeButton("", "GhostButtonStyle", 34);
+            btnRefreshScore.Content = Icons.Make("refresh", 15, Theme.Get("TextBrush"));
             btnRefreshScore.ToolTip = I18n.T("btn_refresh");
-            // Icon-only button (emoji Content) - Narrator would otherwise read
-            // the raw glyph instead of a meaningful label (section 18.2).
+            // Icon-only button (vector icon Content, no text) - Narrator would
+            // otherwise have nothing meaningful to read (section 18.2).
             AutomationProperties.SetName(btnRefreshScore, I18n.T("btn_refresh"));
             DockPanel.SetDock(btnRefreshScore, Dock.Right);
             btnRefreshScore.VerticalAlignment = VerticalAlignment.Top;
@@ -1875,18 +1951,24 @@ namespace UninstallerPro
             panelFactory.AppendChild(nameFactory);
             template.VisualTree = panelFactory;
             _junkList.ItemTemplate = template;
-            dock.Children.Add(_junkList);
+            var junkListHost = new Grid();
+            junkListHost.Children.Add(_junkList);
+            var junkEmptyState = BuildEmptyState("search", I18n.T("junk_none_found"));
+            junkEmptyState.Visibility = Visibility.Collapsed;
+            junkListHost.Children.Add(junkEmptyState);
+            dock.Children.Add(junkListHost);
 
             btnScan.Click += async (s, e) =>
             {
                 _junkStatusLabel.Text = I18n.T("junk_scanning");
+                junkEmptyState.Visibility = Visibility.Collapsed;
                 btnScan.IsEnabled = false; btnClean.IsEnabled = false;
                 Mouse.OverrideCursor = Cursors.Wait;
                 try { _junkCategories = await Task.Run(() => JunkCleanerData.ScanAll()); }
                 catch (Exception ex) { Mouse.OverrideCursor = null; btnScan.IsEnabled = true; btnClean.IsEnabled = true; Dialogs.ShowError(I18n.T("scan_error_title"), ex.Message); return; }
                 Mouse.OverrideCursor = null;
                 btnScan.IsEnabled = true; btnClean.IsEnabled = true;
-                if (_junkCategories.Count == 0) { _junkStatusLabel.Text = I18n.T("junk_none_found"); _junkList.ItemsSource = null; return; }
+                if (_junkCategories.Count == 0) { _junkStatusLabel.Text = ""; _junkList.ItemsSource = null; junkEmptyState.Visibility = Visibility.Visible; return; }
                 _junkStatusLabel.Text = "";
                 _junkList.ItemsSource = _junkCategories.Select(c => new JunkRow { Category = c, Selected = false }).ToList();
             };
@@ -2131,7 +2213,7 @@ namespace UninstallerPro
                 _dupResultsPanel.Children.Clear();
                 if (_dupGroups.Count == 0)
                 {
-                    _dupResultsPanel.Children.Add(new TextBlock { Text = I18n.T("dup_none_found"), Foreground = Theme.Get("TextMutedBrush") });
+                    _dupResultsPanel.Children.Add(BuildEmptyState("search", I18n.T("dup_none_found")));
                     return;
                 }
                 foreach (var group in _dupGroups)
@@ -2346,7 +2428,12 @@ namespace UninstallerPro
             gridUpdates.Columns.Add(new DataGridTextColumn { Header = I18n.T("col_update_current"), Binding = new Binding("CurrentVersion"), Width = new DataGridLength(1.4, DataGridLengthUnitType.Star) });
             gridUpdates.Columns.Add(new DataGridTextColumn { Header = I18n.T("col_update_available"), Binding = new Binding("AvailableVersion"), Width = new DataGridLength(1.4, DataGridLengthUnitType.Star) });
             gridUpdates.Columns.Add(new DataGridTextColumn { Header = I18n.T("col_update_source"), Binding = new Binding("Source"), Width = new DataGridLength(0.9, DataGridLengthUnitType.Star) });
-            dock.Children.Add(gridUpdates);
+            var updatesGridHost = new Grid();
+            updatesGridHost.Children.Add(gridUpdates);
+            var updatesEmptyState = BuildEmptyState("check", I18n.T("updates_none_found_msg"));
+            updatesEmptyState.Visibility = Visibility.Collapsed;
+            updatesGridHost.Children.Add(updatesEmptyState);
+            dock.Children.Add(updatesGridHost);
 
             List<UpdatableRow> updateRows = new List<UpdatableRow>();
 
@@ -2354,6 +2441,7 @@ namespace UninstallerPro
             {
                 btnScanUpdates.IsEnabled = false; btnUpdateSelected.IsEnabled = false;
                 updatesStatusLbl.Text = I18n.T("updates_scanning_msg");
+                updatesEmptyState.Visibility = Visibility.Collapsed;
                 Mouse.OverrideCursor = Cursors.Wait;
                 try
                 {
@@ -2366,8 +2454,9 @@ namespace UninstallerPro
                     }
                     var updates = await Task.Run(() => SoftwareUpdateChecker.GetAvailableUpdates());
                     Mouse.OverrideCursor = null;
-                    if (updates.Count == 0) { updatesStatusLbl.Text = I18n.T("updates_none_found_msg"); gridUpdates.ItemsSource = null; return; }
+                    if (updates.Count == 0) { updatesStatusLbl.Text = ""; gridUpdates.ItemsSource = null; updatesEmptyState.Visibility = Visibility.Visible; return; }
                     updatesStatusLbl.Text = "";
+                    updatesEmptyState.Visibility = Visibility.Collapsed;
                     updateRows = updates.Select(u => new UpdatableRow { Program = u, IsChecked = false }).ToList();
                     gridUpdates.ItemsSource = updateRows;
                 }
@@ -2443,11 +2532,20 @@ namespace UninstallerPro
                 {
                     var row = new DockPanel { Margin = new Thickness(0,3,0,3) };
                     row.Children.Add(new TextBlock { Text = r.Item1, FontWeight = FontWeights.SemiBold, Foreground = Theme.Get("TextBrush"), Width = 260 });
-                    var valueText = r.Item2;
                     var valueBrush = Theme.Get("TextMutedBrush");
-                    if (r.Item3 == true) { valueText = "✓ " + valueText; valueBrush = Theme.Get("AccentBrush"); }
-                    else if (r.Item3 == false) { valueText = "⚠ " + valueText; valueBrush = Theme.Get("DangerBrush"); }
-                    row.Children.Add(new TextBlock { Text = valueText, Foreground = valueBrush, TextWrapping = TextWrapping.Wrap, FontWeight = r.Item3 != null ? FontWeights.SemiBold : FontWeights.Normal });
+                    string statusIconKey = null;
+                    if (r.Item3 == true) { statusIconKey = "check"; valueBrush = Theme.Get("AccentBrush"); }
+                    else if (r.Item3 == false) { statusIconKey = "warning"; valueBrush = Theme.Get("DangerBrush"); }
+                    var valueRow = new StackPanel { Orientation = Orientation.Horizontal };
+                    if (statusIconKey != null)
+                    {
+                        var statusIcon = (FrameworkElement)Icons.Make(statusIconKey, 13, valueBrush);
+                        statusIcon.Margin = new Thickness(0, 0, Theme.Space1, 0);
+                        statusIcon.VerticalAlignment = VerticalAlignment.Center;
+                        valueRow.Children.Add(statusIcon);
+                    }
+                    valueRow.Children.Add(new TextBlock { Text = r.Item2, Foreground = valueBrush, TextWrapping = TextWrapping.Wrap, VerticalAlignment = VerticalAlignment.Center, FontWeight = r.Item3 != null ? FontWeights.SemiBold : FontWeights.Normal });
+                    row.Children.Add(valueRow);
                     inner.Children.Add(row);
                 }
                 card.Child = inner;
@@ -2554,16 +2652,23 @@ namespace UninstallerPro
                 var headerRow = new StackPanel { Orientation = Orientation.Horizontal };
                 var chk = new CheckBox { Content = I18n.T(toggle.LabelKey), Style = (Style)Theme.GetStyle("CardCheckBoxStyle"), IsChecked = toggle.CurrentState };
                 headerRow.Children.Add(chk);
-                TextBlock badge = null;
+                StackPanel badgePanel = null;
+                TextBlock badgeText = null;
                 if (trackingKeys.Contains(toggle.Key))
                 {
-                    badge = new TextBlock
+                    var badgeBrush = toggle.CurrentState ? Theme.Get("DangerBrush") : Theme.Get("AccentBrush");
+                    badgePanel = new StackPanel { Orientation = Orientation.Horizontal, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(10,0,0,0) };
+                    var badgeIcon = (FrameworkElement)Icons.Make(toggle.CurrentState ? "warning" : "check", 13, badgeBrush);
+                    badgeIcon.Margin = new Thickness(0, 0, Theme.Space1, 0);
+                    badgeIcon.VerticalAlignment = VerticalAlignment.Center;
+                    badgeText = new TextBlock
                     {
-                        Text = toggle.CurrentState ? "⚠ " + I18n.T("sec_on") : "✓ " + I18n.T("sec_off"),
-                        Foreground = toggle.CurrentState ? Theme.Get("DangerBrush") : Theme.Get("AccentBrush"),
-                        FontWeight = FontWeights.SemiBold, VerticalAlignment = VerticalAlignment.Center, Margin = new Thickness(10,0,0,0)
+                        Text = toggle.CurrentState ? I18n.T("sec_on") : I18n.T("sec_off"),
+                        Foreground = badgeBrush, FontWeight = FontWeights.SemiBold, VerticalAlignment = VerticalAlignment.Center
                     };
-                    headerRow.Children.Add(badge);
+                    badgePanel.Children.Add(badgeIcon);
+                    badgePanel.Children.Add(badgeText);
+                    headerRow.Children.Add(badgePanel);
                 }
                 stack.Children.Add(headerRow);
                 stack.Children.Add(new TextBlock { Text = I18n.T(toggle.DescKey), Foreground = Theme.Get("TextMutedBrush"), TextWrapping = TextWrapping.Wrap, Margin = new Thickness(24,4,0,0) });
@@ -2571,15 +2676,24 @@ namespace UninstallerPro
                 panel.Children.Add(card);
 
                 var capturedKey = toggle.Key;
-                var capturedBadge = badge;
+                var capturedBadgePanel = badgePanel;
+                var capturedBadgeText = badgeText;
                 Action<bool> onToggle = isOn =>
                 {
                     PrivacyData.SetToggle(capturedKey, isOn);
                     statusLbl.Text = I18n.T("privacy_applied_msg");
-                    if (capturedBadge != null)
+                    if (capturedBadgeText != null)
                     {
-                        capturedBadge.Text = isOn ? "⚠ " + I18n.T("sec_on") : "✓ " + I18n.T("sec_off");
-                        capturedBadge.Foreground = isOn ? Theme.Get("DangerBrush") : Theme.Get("AccentBrush");
+                        // Rebuilt, not recolored: on/off is a different icon
+                        // (warning vs check), not just a different color.
+                        var badgeBrush = isOn ? Theme.Get("DangerBrush") : Theme.Get("AccentBrush");
+                        capturedBadgeText.Text = isOn ? I18n.T("sec_on") : I18n.T("sec_off");
+                        capturedBadgeText.Foreground = badgeBrush;
+                        var newIcon = (FrameworkElement)Icons.Make(isOn ? "warning" : "check", 13, badgeBrush);
+                        newIcon.Margin = new Thickness(0, 0, Theme.Space1, 0);
+                        newIcon.VerticalAlignment = VerticalAlignment.Center;
+                        capturedBadgePanel.Children.RemoveAt(0);
+                        capturedBadgePanel.Children.Insert(0, newIcon);
                     }
                 };
                 chk.Checked += (s, e) => onToggle(true);
@@ -2632,18 +2746,25 @@ namespace UninstallerPro
                 Tuple.Create(I18n.T("col_reg_path"), "MissingPath", 1.8),
                 Tuple.Create(I18n.T("col_reg_hive"), "Hive", 0.6));
             _gridRegClean.Columns.Insert(0, CreateCheckboxColumn("IsSelected"));
-            dock.Children.Add(_gridRegClean);
+            var regGridHost = new Grid();
+            regGridHost.Children.Add(_gridRegClean);
+            var regEmptyState = BuildEmptyState("check", I18n.T("regclean_none_found"));
+            regEmptyState.Visibility = Visibility.Collapsed;
+            regGridHost.Children.Add(regEmptyState);
+            dock.Children.Add(regGridHost);
 
             btnScan.Click += async (s, e) =>
             {
                 btnScan.IsEnabled = false;
                 statusLbl.Text = I18n.T("regclean_scanning");
+                regEmptyState.Visibility = Visibility.Collapsed;
                 _ghostEntries = await Task.Run(() => RegistryCleanerData.Scan());
                 btnScan.IsEnabled = true;
                 allSelected = false;
                 btnSelectAll.Content = I18n.T("btn_select_all");
                 _gridRegClean.ItemsSource = _ghostEntries;
-                statusLbl.Text = _ghostEntries.Count == 0 ? I18n.T("regclean_none_found") : string.Format(I18n.T("regclean_found_count"), _ghostEntries.Count);
+                regEmptyState.Visibility = _ghostEntries.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
+                statusLbl.Text = _ghostEntries.Count == 0 ? "" : string.Format(I18n.T("regclean_found_count"), _ghostEntries.Count);
             };
 
             btnRemove.Click += async (s, e) =>
@@ -2678,6 +2799,7 @@ namespace UninstallerPro
                 _ghostEntries = _ghostEntries.Except(selected).ToList();
                 _gridRegClean.ItemsSource = null;
                 _gridRegClean.ItemsSource = _ghostEntries;
+                regEmptyState.Visibility = _ghostEntries.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
                 Dialogs.Info(I18n.T("generic_done_title"), string.Format(I18n.T("regclean_removed_msg"), result.Item1, selected.Count, result.Item2 ?? "-"));
             };
 

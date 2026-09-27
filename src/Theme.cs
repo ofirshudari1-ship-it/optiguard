@@ -10,6 +10,22 @@ namespace UninstallerPro
     {
         public static ResourceDictionary Resources;
 
+        // v4.21 modernization: a small deliberate type/spacing scale, so new
+        // and updated chrome (header, sidebar, sub-nav, footer, command
+        // palette, cards) stops picking ad-hoc font sizes/margins one control
+        // at a time. Existing call sites keep working unchanged; these are
+        // opt-in for anything touched going forward.
+        public const double FontCaption = 11;    // meta/hint text
+        public const double FontBody = 13;       // default body text
+        public const double FontSubtitle = 13.5; // nav items, buttons
+        public const double FontTitle = 15;      // card/section titles
+        public const double FontDisplay = 20;     // big numbers, page headers
+
+        public const double Space1 = 4;
+        public const double Space2 = 8;
+        public const double Space3 = 16;
+        public const double Space4 = 24;
+
         private const string XamlTemplate = @"
 <ResourceDictionary xmlns='http://schemas.microsoft.com/winfx/2006/xaml/presentation'
                      xmlns:x='http://schemas.microsoft.com/winfx/2006/xaml'>
