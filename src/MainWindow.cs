@@ -109,18 +109,48 @@ namespace UninstallerPro
             public bool Built;
         }
 
+        // Redesigned navigation (v4.20): the old palette had a different emoji
+        // for all 18 leaf tabs - a "wall of icons" that read as noisy rather
+        // than helpful, and didn't actually help anyone find anything (per the
+        // owner's own usability complaint). The 18 tabs are now consolidated
+        // into 4 purposeful top-level sections (plus standalone Settings),
+        // and only those 5 entries carry an icon at all - a leaf tab inside a
+        // section is reached through a plain-text sub-navigation strip
+        // instead (see BuildSubNavStrip), since it doesn't need its own icon
+        // once you're already inside the right section.
         private static readonly Dictionary<string, string> NavIcons = new Dictionary<string, string>
         {
-            { "dashboard", "🏠" }, { "timeline", "🕒" }, { "programs", "📦" }, { "games", "🎮" }, { "ext", "🧩" },
-            { "startup", "🚀" }, { "junk", "🧹" }, { "disk", "💽" }, { "diskspace", "📊" }, { "duplicates", "🪞" }, { "fixes", "🔧" }, { "swupdates", "⬆" },
-            { "sysinfo", "🖥" }, { "seccenter", "🛡" }, { "privacy", "🔏" },
-            { "regclean", "🗂" }, { "phishing", "🎣" }, { "settings", "⚙" },
+            { "settings", "⚙" },
+        };
+
+        // Metadata for the 4 consolidated top-level sections. Icon reused
+        // from that section's most representative former leaf icon, so the
+        // reduced icon set still feels familiar rather than arbitrary.
+        private class GroupMeta { public string LabelKey; public string DescKey; public string Icon; }
+        private static readonly Dictionary<string, GroupMeta> NavGroups = new Dictionary<string, GroupMeta>
+        {
+            { "grp_overview", new GroupMeta { LabelKey = "nav_group_overview", DescKey = "nav_group_overview_desc", Icon = "🏠" } },
+            { "grp_apps", new GroupMeta { LabelKey = "nav_group_apps", DescKey = "nav_group_apps_desc", Icon = "📦" } },
+            { "grp_cleanup", new GroupMeta { LabelKey = "nav_group_cleanup", DescKey = "nav_group_cleanup_desc", Icon = "🧹" } },
+            { "grp_security", new GroupMeta { LabelKey = "nav_group_security", DescKey = "nav_group_security_desc", Icon = "🛡" } },
         };
 
         private List<NavEntry> _navEntries;
         private Dictionary<string, Border> _navButtons = new Dictionary<string, Border>();
         private Dictionary<string, TextBlock> _navLabels = new Dictionary<string, TextBlock>();
+        private Dictionary<string, TextBlock> _navDescLabels = new Dictionary<string, TextBlock>();
         private string _currentNavKey;
+        // Group-level state for the consolidated navigation: which section is
+        // currently highlighted in the sidebar, which leaf tab was last shown
+        // inside each section (so re-entering a section returns you to where
+        // you left it, not always back to its first tab), the sub-nav strip
+        // built once per section, and the pill buttons/labels within it.
+        private string _currentGroupKey;
+        private Dictionary<string, string> _groupLastChild = new Dictionary<string, string>();
+        private Dictionary<string, UIElement> _groupSubNavStrips = new Dictionary<string, UIElement>();
+        private Dictionary<string, Border> _subNavButtons = new Dictionary<string, Border>();
+        private Dictionary<string, TextBlock> _subNavLabels = new Dictionary<string, TextBlock>();
+        private ContentControl _subNavHost;
         private ContentControl _contentHost;
         private Action _refreshDashboard;
         private Action _refreshHealthScore;
@@ -202,25 +232,34 @@ namespace UninstallerPro
             }
             catch { }
 
+            // Consolidated from the old 18 flat top-level tabs into 4 sections
+            // (plus standalone Settings) - see GroupMeta/NavGroups above.
+            // Overview: every "at a glance" surface. Apps & Startup: what's
+            // installed/running. Cleanup & Storage: what frees up/cleans
+            // disk. Security & Updates: everything security/privacy-relevant,
+            // including software updates (a security-hygiene concern, not a
+            // maintenance chore). No feature was dropped - every one of the
+            // 18 original Build*Tab methods is unchanged and still reachable,
+            // just grouped instead of listed flat.
             _navEntries = new List<NavEntry>
             {
-                new NavEntry { Key = "dashboard", GroupKey = "nav_group_overview", LabelKey = "tab_dashboard", Builder = BuildDashboardTab, OnEveryShow = () => { if (_refreshDashboard != null) _refreshDashboard(); } },
-                new NavEntry { Key = "timeline", GroupKey = "nav_group_overview", LabelKey = "timeline_title", Builder = BuildTimelineTab, OnEveryShow = () => { if (_refreshTimeline != null) _refreshTimeline(); } },
-                new NavEntry { Key = "programs", GroupKey = "nav_group_uninstall", LabelKey = "tab_programs", Builder = BuildProgramsTab, OnFirstShow = RefreshPrograms },
-                new NavEntry { Key = "games", GroupKey = "nav_group_uninstall", LabelKey = "tab_games", Builder = BuildGamesTab, OnFirstShow = RefreshGames },
-                new NavEntry { Key = "ext", GroupKey = "nav_group_uninstall", LabelKey = "tab_extensions", Builder = BuildExtensionsTab, OnFirstShow = RefreshExtensions },
-                new NavEntry { Key = "startup", GroupKey = "nav_group_maintenance", LabelKey = "tab_startup", Builder = BuildStartupTab, OnFirstShow = RefreshStartup },
-                new NavEntry { Key = "junk", GroupKey = "nav_group_maintenance", LabelKey = "tab_junk_cleaner", Builder = BuildJunkCleanerTab },
-                new NavEntry { Key = "disk", GroupKey = "nav_group_maintenance", LabelKey = "tab_disk_health", Builder = BuildDiskHealthTab },
-                new NavEntry { Key = "diskspace", GroupKey = "nav_group_maintenance", LabelKey = "tab_disk_space_analyzer", Builder = BuildDiskSpaceAnalyzerTab },
-                new NavEntry { Key = "duplicates", GroupKey = "nav_group_maintenance", LabelKey = "tab_duplicate_finder", Builder = BuildDuplicateFinderTab },
-                new NavEntry { Key = "fixes", GroupKey = "nav_group_maintenance", LabelKey = "tab_quick_fixes", Builder = BuildQuickFixesTab },
-                new NavEntry { Key = "swupdates", GroupKey = "nav_group_updates", LabelKey = "tab_software_updates", Builder = BuildSoftwareUpdatesTab },
-                new NavEntry { Key = "sysinfo", GroupKey = "nav_group_system", LabelKey = "tab_system_info", Builder = BuildSystemInfoTab },
-                new NavEntry { Key = "seccenter", GroupKey = "nav_group_security", LabelKey = "tab_security_center", Builder = BuildSecurityCenterTab },
-                new NavEntry { Key = "privacy", GroupKey = "nav_group_security", LabelKey = "tab_privacy", Builder = BuildPrivacyTab },
-                new NavEntry { Key = "regclean", GroupKey = "nav_group_security", LabelKey = "tab_registry_cleaner", Builder = BuildRegistryCleanerTab },
-                new NavEntry { Key = "phishing", GroupKey = "nav_group_security", LabelKey = "tab_phishing_checker", Builder = BuildPhishingCheckerTab },
+                new NavEntry { Key = "dashboard", GroupKey = "grp_overview", LabelKey = "tab_dashboard", Builder = BuildDashboardTab, OnEveryShow = () => { if (_refreshDashboard != null) _refreshDashboard(); } },
+                new NavEntry { Key = "timeline", GroupKey = "grp_overview", LabelKey = "timeline_title", Builder = BuildTimelineTab, OnEveryShow = () => { if (_refreshTimeline != null) _refreshTimeline(); } },
+                new NavEntry { Key = "fixes", GroupKey = "grp_overview", LabelKey = "tab_quick_fixes", Builder = BuildQuickFixesTab },
+                new NavEntry { Key = "sysinfo", GroupKey = "grp_overview", LabelKey = "tab_system_info", Builder = BuildSystemInfoTab },
+                new NavEntry { Key = "programs", GroupKey = "grp_apps", LabelKey = "tab_programs", Builder = BuildProgramsTab, OnFirstShow = RefreshPrograms },
+                new NavEntry { Key = "games", GroupKey = "grp_apps", LabelKey = "tab_games", Builder = BuildGamesTab, OnFirstShow = RefreshGames },
+                new NavEntry { Key = "ext", GroupKey = "grp_apps", LabelKey = "tab_extensions", Builder = BuildExtensionsTab, OnFirstShow = RefreshExtensions },
+                new NavEntry { Key = "startup", GroupKey = "grp_apps", LabelKey = "tab_startup", Builder = BuildStartupTab, OnFirstShow = RefreshStartup },
+                new NavEntry { Key = "junk", GroupKey = "grp_cleanup", LabelKey = "tab_junk_cleaner", Builder = BuildJunkCleanerTab },
+                new NavEntry { Key = "disk", GroupKey = "grp_cleanup", LabelKey = "tab_disk_health", Builder = BuildDiskHealthTab },
+                new NavEntry { Key = "diskspace", GroupKey = "grp_cleanup", LabelKey = "tab_disk_space_analyzer", Builder = BuildDiskSpaceAnalyzerTab },
+                new NavEntry { Key = "duplicates", GroupKey = "grp_cleanup", LabelKey = "tab_duplicate_finder", Builder = BuildDuplicateFinderTab },
+                new NavEntry { Key = "regclean", GroupKey = "grp_cleanup", LabelKey = "tab_registry_cleaner", Builder = BuildRegistryCleanerTab },
+                new NavEntry { Key = "seccenter", GroupKey = "grp_security", LabelKey = "tab_security_center", Builder = BuildSecurityCenterTab },
+                new NavEntry { Key = "privacy", GroupKey = "grp_security", LabelKey = "tab_privacy", Builder = BuildPrivacyTab },
+                new NavEntry { Key = "phishing", GroupKey = "grp_security", LabelKey = "tab_phishing_checker", Builder = BuildPhishingCheckerTab },
+                new NavEntry { Key = "swupdates", GroupKey = "grp_security", LabelKey = "tab_software_updates", Builder = BuildSoftwareUpdatesTab },
                 new NavEntry { Key = "settings", GroupKey = null, LabelKey = "tab_settings", Builder = BuildSettingsTab },
             };
 
@@ -235,6 +274,12 @@ namespace UninstallerPro
             middle.Children.Add(BuildSidebar());
 
             var contentArea = new DockPanel();
+            // Sub-navigation strip for whichever consolidated section is
+            // currently open (hidden for Settings and never shown at all for
+            // a section with only one tab inside it) - see BuildSubNavStrip.
+            _subNavHost = new ContentControl { Visibility = Visibility.Collapsed };
+            DockPanel.SetDock(_subNavHost, Dock.Top);
+            contentArea.Children.Add(_subNavHost);
             _contentHost = new ContentControl();
             contentArea.Children.Add(_contentHost);
             middle.Children.Add(contentArea);
@@ -587,27 +632,80 @@ namespace UninstallerPro
             sidebarDock.Children.Add(sep);
 
             var scroll = new ScrollViewer { VerticalScrollBarVisibility = ScrollBarVisibility.Auto };
-            var stack = new StackPanel { Margin = new Thickness(10,16,10,10) };
+            // Only 4 top-level entries now (down from 18 flat tabs), so the
+            // sidebar can afford real breathing room instead of packing rows
+            // tightly to fit everything above the fold - directly addresses
+            // "too crowded, too dense" from the redesign brief.
+            var stack = new StackPanel { Margin = new Thickness(10,20,10,10) };
             scroll.Content = stack;
 
-            string lastGroup = null;
+            var seenGroups = new HashSet<string>();
             foreach (var entry in _navEntries.Where(n => n.GroupKey != null))
             {
-                if (entry.GroupKey != lastGroup)
+                if (seenGroups.Add(entry.GroupKey))
                 {
-                    var groupLbl = new TextBlock
-                    {
-                        Text = I18n.T(entry.GroupKey), FontSize = 11, FontWeight = FontWeights.Bold,
-                        Foreground = Theme.Get("TextMutedBrush"), Margin = new Thickness(10, lastGroup == null ? 0 : 18, 10, 6)
-                    };
-                    stack.Children.Add(groupLbl);
-                    lastGroup = entry.GroupKey;
+                    stack.Children.Add(BuildGroupButton(entry.GroupKey));
                 }
-                stack.Children.Add(BuildNavButton(entry));
             }
 
             sidebarDock.Children.Add(scroll);
             return border;
+        }
+
+        // Sidebar button for one of the 4 consolidated top-level sections.
+        // Shows the section's icon, name, and a short one-line description of
+        // what lives inside it (so picking a section doesn't require already
+        // knowing what it contains) - a two-line, roomier button replacing
+        // the old single-line-per-leaf-tab list.
+        private Border BuildGroupButton(string groupKey)
+        {
+            var meta = NavGroups[groupKey];
+            var border = new Border
+            {
+                Padding = new Thickness(16,14,16,14), Margin = new Thickness(0,4,0,4), CornerRadius = new CornerRadius(10),
+                Cursor = Cursors.Hand, Background = Brushes.Transparent,
+                BorderThickness = new Thickness(2), BorderBrush = Brushes.Transparent,
+                Focusable = true, SnapsToDevicePixels = true
+            };
+            var row = new StackPanel { Orientation = Orientation.Horizontal };
+            row.Children.Add(new TextBlock { Text = meta.Icon, FontSize = 18, Margin = new Thickness(0,0,12,0), VerticalAlignment = VerticalAlignment.Center });
+            var textCol = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
+            var titleText = new TextBlock { Text = I18n.T(meta.LabelKey), FontSize = 14.5, FontWeight = FontWeights.SemiBold, Foreground = Theme.Get("TextBrush") };
+            var descText = new TextBlock { Text = I18n.T(meta.DescKey), FontSize = 10.5, Foreground = Theme.Get("TextMutedBrush"), TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0,2,0,0) };
+            textCol.Children.Add(titleText);
+            textCol.Children.Add(descText);
+            row.Children.Add(textCol);
+            border.Child = row;
+
+            // Same explicit keyboard/Narrator wiring as every other custom-
+            // drawn nav control in this window (section 18.2) - this Border
+            // has no built-in Control support for free.
+            AutomationProperties.SetName(border, I18n.T(meta.LabelKey) + ". " + I18n.T(meta.DescKey));
+            border.MouseLeftButtonUp += (s, e) => NavigateToGroup(groupKey);
+            border.KeyDown += (s, e) =>
+            {
+                if (e.Key == Key.Enter || e.Key == Key.Space) { NavigateToGroup(groupKey); e.Handled = true; }
+            };
+            border.GotKeyboardFocus += (s, e) => border.BorderBrush = Theme.Get("AccentBrush");
+            border.LostKeyboardFocus += (s, e) => border.BorderBrush = Brushes.Transparent;
+            border.MouseEnter += (s, e) => { if (_currentGroupKey != groupKey) { border.Background = Theme.Get("HoverBgBrush"); titleText.Foreground = Theme.Get("HoverTextBrush"); } };
+            border.MouseLeave += (s, e) => { if (_currentGroupKey != groupKey) { border.Background = Brushes.Transparent; titleText.Foreground = Theme.Get("TextBrush"); } };
+            _navButtons[groupKey] = border;
+            _navLabels[groupKey] = titleText;
+            _navDescLabels[groupKey] = descText;
+            return border;
+        }
+
+        // Clicking a section in the sidebar returns to whichever of its tabs
+        // was last open (defaulting to the first one the first time), instead
+        // of always resetting to the top - so switching sections and back
+        // doesn't lose your place.
+        private void NavigateToGroup(string groupKey)
+        {
+            string childKey;
+            if (!_groupLastChild.TryGetValue(groupKey, out childKey))
+                childKey = _navEntries.First(n => n.GroupKey == groupKey).Key;
+            NavigateTo(childKey);
         }
 
         private Border BuildNavButton(NavEntry entry)
@@ -653,6 +751,50 @@ namespace UninstallerPro
             return border;
         }
 
+        // Horizontal pill-tab strip shown above the content area whenever the
+        // open section has more than one tab inside it - lets you switch
+        // between, e.g., Programs/Games/Extensions/Startup without going back
+        // to the sidebar. Text-only (no icon): once you're already inside the
+        // right section, an icon per tab was exactly the kind of extra visual
+        // noise this redesign is removing.
+        private UIElement BuildSubNavStrip(List<NavEntry> children)
+        {
+            var host = new Border
+            {
+                Background = Theme.Get("PanelBrush"), BorderBrush = Theme.Get("BorderColorBrush"),
+                BorderThickness = new Thickness(0,0,0,1), Padding = new Thickness(18,10,18,10)
+            };
+            var wrap = new WrapPanel();
+            host.Child = wrap;
+
+            foreach (var child in children)
+            {
+                var pill = new Border
+                {
+                    Padding = new Thickness(16,7,16,7), Margin = new Thickness(0,0,8,0), CornerRadius = new CornerRadius(16),
+                    Cursor = Cursors.Hand, Background = Brushes.Transparent, Focusable = true,
+                    BorderThickness = new Thickness(1.5), BorderBrush = Brushes.Transparent
+                };
+                var text = new TextBlock { Text = I18n.T(child.LabelKey), FontSize = 13, Foreground = Theme.Get("TextBrush"), VerticalAlignment = VerticalAlignment.Center };
+                pill.Child = text;
+
+                AutomationProperties.SetName(pill, I18n.T(child.LabelKey));
+                var capturedKey = child.Key;
+                pill.MouseLeftButtonUp += (s, e) => NavigateTo(capturedKey);
+                pill.KeyDown += (s, e) => { if (e.Key == Key.Enter || e.Key == Key.Space) { NavigateTo(capturedKey); e.Handled = true; } };
+                pill.GotKeyboardFocus += (s, e) => pill.BorderBrush = Theme.Get("AccentBrush");
+                pill.LostKeyboardFocus += (s, e) => pill.BorderBrush = Brushes.Transparent;
+                pill.MouseEnter += (s, e) => { if (_currentNavKey != capturedKey) pill.Background = Theme.Get("HoverBgBrush"); };
+                pill.MouseLeave += (s, e) => { if (_currentNavKey != capturedKey) pill.Background = Brushes.Transparent; };
+
+                _subNavButtons[child.Key] = pill;
+                _subNavLabels[child.Key] = text;
+                wrap.Children.Add(pill);
+            }
+
+            return host;
+        }
+
         private UIElement BuildGlobalBar()
         {
             var bar = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Left, Margin = new Thickness(14,10,14,4) };
@@ -691,17 +833,68 @@ namespace UninstallerPro
             }
             if (entry.OnEveryShow != null) entry.OnEveryShow();
 
-            if (_currentNavKey != null && _navButtons.ContainsKey(_currentNavKey))
+            // Sidebar highlight - a leaf living inside a consolidated section
+            // no longer has a sidebar button of its own, so its section's
+            // button lights up instead; the standalone Settings leaf still
+            // highlights its own button exactly as before (GroupKey is null,
+            // so it falls back to its own Key).
+            string highlightKey = entry.GroupKey ?? entry.Key;
+            if (_currentGroupKey != null && _currentGroupKey != highlightKey && _navButtons.ContainsKey(_currentGroupKey))
             {
-                _navButtons[_currentNavKey].Background = Brushes.Transparent;
-                _navLabels[_currentNavKey].Foreground = Theme.Get("TextBrush");
-                _navLabels[_currentNavKey].FontWeight = FontWeights.Normal;
+                _navButtons[_currentGroupKey].Background = Brushes.Transparent;
+                _navLabels[_currentGroupKey].Foreground = Theme.Get("TextBrush");
+                _navLabels[_currentGroupKey].FontWeight = FontWeights.Normal;
+                if (_navDescLabels.ContainsKey(_currentGroupKey)) _navDescLabels[_currentGroupKey].Foreground = Theme.Get("TextMutedBrush");
             }
-            _currentNavKey = key;
-            _navButtons[key].Background = Theme.Get("AccentBrush");
-            _navLabels[key].Foreground = Theme.Get("AccentTextBrush");
-            _navLabels[key].FontWeight = FontWeights.SemiBold;
+            _currentGroupKey = highlightKey;
+            _navButtons[highlightKey].Background = Theme.Get("AccentBrush");
+            _navLabels[highlightKey].Foreground = Theme.Get("AccentTextBrush");
+            _navLabels[highlightKey].FontWeight = FontWeights.SemiBold;
+            // The description line under an active section button also
+            // switches to AccentTextBrush (not just staying muted-gray) -
+            // TextMutedBrush is only guaranteed readable against the page
+            // background, not against a solid accent fill.
+            if (_navDescLabels.ContainsKey(highlightKey)) _navDescLabels[highlightKey].Foreground = Theme.Get("AccentTextBrush");
 
+            // Sub-navigation strip: shown only for a leaf inside a section
+            // that actually has more than one tab - Settings and any
+            // single-tab section show nothing above the content, since
+            // there's nothing to switch between.
+            if (entry.GroupKey != null)
+            {
+                _groupLastChild[entry.GroupKey] = key;
+                var siblings = _navEntries.Where(n => n.GroupKey == entry.GroupKey).ToList();
+                if (siblings.Count > 1)
+                {
+                    UIElement strip;
+                    if (!_groupSubNavStrips.TryGetValue(entry.GroupKey, out strip))
+                    {
+                        strip = BuildSubNavStrip(siblings);
+                        _groupSubNavStrips[entry.GroupKey] = strip;
+                    }
+                    _subNavHost.Content = strip;
+                    _subNavHost.Visibility = Visibility.Visible;
+                    foreach (var sib in siblings)
+                    {
+                        bool active = sib.Key == key;
+                        _subNavButtons[sib.Key].Background = active ? Theme.Get("AccentLightBrush") : Brushes.Transparent;
+                        _subNavLabels[sib.Key].Foreground = active ? Theme.Get("AccentBrush") : Theme.Get("TextBrush");
+                        _subNavLabels[sib.Key].FontWeight = active ? FontWeights.SemiBold : FontWeights.Normal;
+                    }
+                }
+                else
+                {
+                    _subNavHost.Content = null;
+                    _subNavHost.Visibility = Visibility.Collapsed;
+                }
+            }
+            else
+            {
+                _subNavHost.Content = null;
+                _subNavHost.Visibility = Visibility.Collapsed;
+            }
+
+            _currentNavKey = key;
             _contentHost.Content = entry.Content;
             entry.Content.Opacity = 0;
             var anim = new System.Windows.Media.Animation.DoubleAnimation(0, 1, TimeSpan.FromMilliseconds(200));

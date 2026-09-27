@@ -6,7 +6,14 @@ using System.Windows.Media;
 
 namespace UninstallerPro
 {
-    // First-run onboarding: 5 screens max, per the shared cross-tool standard.
+    // First-run onboarding: 3 screens (reduced from 5 - the redesign brief
+    // asked for fewer/shorter wizards app-wide). The old 5-page version had
+    // only one page with anything to actually decide (the theme); the other
+    // four were pure "read this, click Next" text screens, which is exactly
+    // the kind of over-long wizard the redesign calls out. Welcome and
+    // Features are now one combined intro page, and Tip and Finish are one
+    // combined closing page - no information was dropped, just no longer
+    // spread across a click per paragraph.
     // Skip is always visible (not hidden/greyed) and Esc skips too; whoever
     // skips still gets sane defaults (the theme already picked on the
     // screens they did see, or Light if they skip immediately - and the
@@ -20,7 +27,7 @@ namespace UninstallerPro
         public string ResultTheme { get; private set; }
 
         private int _page = 0;
-        private const int TotalPages = 5;
+        private const int TotalPages = 3;
 
         private readonly ContentControl _pageHost = new ContentControl();
         private readonly StackPanel _dotsPanel = new StackPanel { Orientation = Orientation.Horizontal, HorizontalAlignment = HorizontalAlignment.Center };
@@ -133,14 +140,26 @@ namespace UninstallerPro
         {
             var stack = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
 
-            string titleKey, bodyKey;
+            // page 0 = Welcome + Features combined, page 1 = Theme (the only
+            // page with an actual choice on it), page 2 = Tip + Finish
+            // combined. Every string from the old 5-page version is still
+            // shown in full - just two paragraphs per page instead of one.
+            string titleKey;
+            string bodyText;
             switch (page)
             {
-                case 0: titleKey = "onb_page_welcome_title"; bodyKey = "onb_page_welcome_body"; break;
-                case 1: titleKey = "onb_page_theme_title"; bodyKey = "onb_page_theme_body"; break;
-                case 2: titleKey = "onb_page_features_title"; bodyKey = "onb_page_features_body"; break;
-                case 3: titleKey = "onb_page_tip_title"; bodyKey = "onb_page_tip_body"; break;
-                default: titleKey = "onb_page_finish_title"; bodyKey = "onb_page_finish_body"; break;
+                case 0:
+                    titleKey = "onb_page_welcome_title";
+                    bodyText = I18n.T("onb_page_welcome_body") + "\n\n" + I18n.T("onb_page_features_body");
+                    break;
+                case 1:
+                    titleKey = "onb_page_theme_title";
+                    bodyText = I18n.T("onb_page_theme_body");
+                    break;
+                default:
+                    titleKey = "onb_page_finish_title";
+                    bodyText = I18n.T("onb_page_tip_body") + "\n\n" + I18n.T("onb_page_finish_body");
+                    break;
             }
 
             stack.Children.Add(new TextBlock
@@ -154,7 +173,7 @@ namespace UninstallerPro
             });
             stack.Children.Add(new TextBlock
             {
-                Text = I18n.T(bodyKey),
+                Text = bodyText,
                 FontSize = 14,
                 Foreground = Theme.Get("TextMutedBrush"),
                 TextWrapping = TextWrapping.Wrap,
