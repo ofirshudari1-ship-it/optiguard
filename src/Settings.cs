@@ -25,12 +25,12 @@ namespace UninstallerPro
         // OptiGuard version a few seconds after startup, at most once per
         // session. See UpdateChecker.cs.
         public bool AutoCheckUpdates = true;
-        // Default DISABLED (opt-in): silently downloading and launching an
-        // installer .exe is a more invasive action than the passive
-        // "here's a banner/notification" behavior AutoCheckUpdates controls,
-        // so a user has to turn this on deliberately. See UpdateChecker.cs
-        // DownloadAndLaunchSilentInstall.
-        public bool AutoInstallUpdates = false;
+        // Default ENABLED (2026-09-28: matches Playnest/TapAct/SnapCap - the
+        // whole portfolio's stated goal is a silent background update by
+        // default, never a redirect to a manual download page). Still a
+        // real opt-out in Settings for anyone who prefers the old
+        // banner-only behavior. See UpdateChecker.cs DownloadAndLaunchSilentInstall.
+        public bool AutoInstallUpdates = true;
         public int QuarantineRetentionDays = 7;
 
         // Scheduled automatic cleanup (added 4.10.0, see ScheduledCleanupData.cs) -
