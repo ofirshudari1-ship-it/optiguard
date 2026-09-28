@@ -3,6 +3,7 @@ using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
+using System.Windows.Media.Imaging;
 
 namespace UninstallerPro
 {
@@ -162,6 +163,12 @@ namespace UninstallerPro
                     break;
             }
 
+            if (page == 0)
+            {
+                var illustration = BuildWelcomeIllustration();
+                if (illustration != null) stack.Children.Add(illustration);
+            }
+
             stack.Children.Add(new TextBlock
             {
                 Text = I18n.T(titleKey),
@@ -225,6 +232,58 @@ namespace UninstallerPro
             }
 
             return stack;
+        }
+
+        // Welcome-page illustration (Bloom AI, see ../assets/onboarding/meta.json).
+        // The source image has a plain light background, so on the Dark/HighContrast
+        // themes it's set inside a fixed-white rounded card (never the theme's own
+        // panel color) rather than pasted straight onto the page - otherwise it
+        // would show as a jarring pale rectangle on the dark background instead of
+        // looking like an intentional framed graphic. Theme.CardShadow already
+        // returns null under high contrast, so the card stays a flat bordered
+        // rectangle there instead of a soft shadow that would blur its edge.
+        private static UIElement BuildWelcomeIllustration()
+        {
+            BitmapFrame frame;
+            try
+            {
+                var resourceUri = new Uri("pack://application:,,,/onboarding-illustration.png", UriKind.Absolute);
+                var streamInfo = Application.GetResourceStream(resourceUri);
+                if (streamInfo == null) return null;
+                using (streamInfo.Stream)
+                {
+                    frame = BitmapFrame.Create(streamInfo.Stream, BitmapCreateOptions.None, BitmapCacheOption.OnLoad);
+                }
+            }
+            catch
+            {
+                // Missing/corrupt resource must never block the onboarding flow -
+                // the page still works fine with just the title and body text.
+                return null;
+            }
+
+            var image = new Image
+            {
+                Source = frame,
+                Height = 108,
+                Stretch = Stretch.Uniform,
+                HorizontalAlignment = HorizontalAlignment.Center
+            };
+            RenderOptions.SetBitmapScalingMode(image, BitmapScalingMode.HighQuality);
+
+            var card = new Border
+            {
+                Background = Brushes.White,
+                BorderBrush = Theme.Get("BorderColorBrush"),
+                BorderThickness = new Thickness(1),
+                CornerRadius = new CornerRadius(12),
+                Padding = new Thickness(18, 14, 18, 14),
+                HorizontalAlignment = HorizontalAlignment.Center,
+                Margin = new Thickness(0, 0, 0, 16),
+                Effect = Theme.CardShadow(Theme.CurrentName),
+                Child = image
+            };
+            return card;
         }
     }
 }

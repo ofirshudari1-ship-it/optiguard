@@ -1,0 +1,10 @@
+{
+  "file": "onboarding-illustration.png",
+  "source": "onboarding-illustration-source.png",
+  "dimensions": "800x600",
+  "generated_by": "Bloom AI (trybloom.ai)",
+  "generated_date": "2026-09-28",
+  "usage": "Embedded WPF resource shown on the OnboardingWindow welcome page (src/OnboardingWindow.cs), not the marketing site.",
+  "alt_en": "A shield with a checkmark, illustrating OptiGuard keeping a PC clean and protected",
+  "alt_he": "מגן עם סימן וי, מייצג את OptiGuard ששומר את המחשב נקי ומוגן"
+}

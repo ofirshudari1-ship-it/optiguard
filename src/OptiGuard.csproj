@@ -64,4 +64,17 @@
     </Resource>
   </ItemGroup>
 
+  <!--
+    Onboarding wizard illustration (Bloom AI, see ../assets/onboarding/meta.json),
+    embedded the same way as AppIcon.ico above so OnboardingWindow.cs can load it
+    via a pack://application:,,, URI. Web-optimized 800x600 copy (278KB) - the
+    2048x1536 source lives alongside it for future regeneration but is not
+    embedded here to keep the exe small.
+  -->
+  <ItemGroup>
+    <Resource Include="..\assets\onboarding\onboarding-illustration.png">
+      <Link>onboarding-illustration.png</Link>
+    </Resource>
+  </ItemGroup>
+
 </Project>
