@@ -22,8 +22,8 @@ namespace UninstallerPro
         public bool FirstLaunchCompleted = false;
         public bool EnableNotifications = true;
         // Default enabled (opt-out): checks GitHub Releases for a newer
-        // OptiGuard version a few seconds after startup, at most once per
-        // session. See UpdateChecker.cs.
+        // OptiGuard version a few seconds after startup and then about every
+        // 6 hours / after resume from sleep (4.22.0). See UpdatePolicy.cs.
         public bool AutoCheckUpdates = true;
         // Default ENABLED (2026-09-28: matches Playnest/TapAct/SnapCap - the
         // whole portfolio's stated goal is a silent background update by

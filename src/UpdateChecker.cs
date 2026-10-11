@@ -15,6 +15,10 @@ namespace UninstallerPro
         public string Name;
         public string DownloadUrl;
         public long Size;
+        // sha256 (lowercase hex) from the "digest" field GitHub's release API
+        // returns for the asset ("sha256:<hex>"). Null when the field is
+        // absent/unparseable - then only size + PE checks apply (never blocks).
+        public string Sha256;
     }
 
     public class UpdateInfo
@@ -129,7 +133,8 @@ namespace UninstallerPro
                         try { size = Convert.ToInt64(assetDict["size"]); } catch { }
                     }
 
-                    var asset = new UpdateAsset { Name = name, DownloadUrl = url, Size = size };
+                    string digest = assetDict.ContainsKey("digest") ? assetDict["digest"] as string : null;
+                    var asset = new UpdateAsset { Name = name, DownloadUrl = url, Size = size, Sha256 = UpdatePolicy.ParseDigest(digest) };
                     if (name.StartsWith("OptiGuard-Setup", StringComparison.OrdinalIgnoreCase)) return asset;
                     if (fallback == null) fallback = asset;
                 }
@@ -147,17 +152,7 @@ namespace UninstallerPro
 
         private static bool IsNewer(string latest, string current)
         {
-            Version vLatest, vCurrent;
-            if (Version.TryParse(NormalizeVersion(latest), out vLatest) && Version.TryParse(NormalizeVersion(current), out vCurrent))
-                return vLatest > vCurrent;
-            return string.CompareOrdinal(latest, current) > 0;
-        }
-
-        private static string NormalizeVersion(string v)
-        {
-            if (string.IsNullOrEmpty(v)) return "0.0";
-            var parts = v.Split('.');
-            return parts.Length == 1 ? v + ".0" : v;
+            return UpdatePolicy.IsNewer(latest, current);
         }
 
         // Opens the GitHub release page in the user's default browser so they
@@ -286,11 +281,11 @@ namespace UninstallerPro
             }
 
             // Basic integrity check: the file we actually got must match the
-            // size GitHub told us to expect for this asset. This does not
-            // validate the content (the release has no published checksum/
-            // signature to check against), but it catches a truncated,
-            // interrupted, or otherwise short download instead of silently
-            // launching a broken .exe.
+            // size GitHub told us to expect for this asset (catches a truncated
+            // or interrupted download), and - since 4.22.0 - its sha256 must
+            // equal the digest GitHub's release API publishes for the asset,
+            // when that field is present. If the field is absent the update is
+            // NOT blocked (size + PE checks still apply).
             try
             {
                 var actualSize = new FileInfo(destPath).Length;
@@ -301,6 +296,15 @@ namespace UninstallerPro
                     TryDeleteFile(destPath);
                     return false;
                 }
+                string actualSha;
+                if (!UpdatePolicy.Sha256Matches(destPath, info.Asset.Sha256, out actualSha))
+                {
+                    error = "sha256_mismatch: downloaded installer does not match the published digest";
+                    Logger.Log("Update download rejected: sha256 mismatch (expected " + info.Asset.Sha256 + ", got " + actualSha + ")");
+                    TryDeleteFile(destPath);
+                    return false;
+                }
+                Logger.Log("Update download verified: " + actualSize + " bytes, sha256 " + (string.IsNullOrEmpty(info.Asset.Sha256) ? "digest not published (skipped)" : "ok"));
                 // Second, size-independent check: the file must actually be a
                 // Windows executable (PE files start with "MZ"). Catches an
                 // HTML error/login page served by a proxy or captive portal

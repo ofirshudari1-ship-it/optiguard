@@ -416,8 +416,8 @@ namespace UninstallerPro
         // updates" saved to disk but nothing ever read it back). Per the shared
         // standard, an available update is a "persistent state until resolved" -
         // a dismissible banner, not a Toast that vanishes or a Dialog that blocks
-        // startup. Only ever shown if the user opted in via Settings and
-        // configured an update manifest URL; a failed/absent check stays silent.
+        // startup. Shown only when "check for updates" is on (default) and a
+        // newer GitHub release exists; a failed/absent check stays silent.
         private UIElement BuildUpdateBanner()
         {
             var banner = new Border
@@ -449,65 +449,136 @@ namespace UninstallerPro
             var text = new TextBlock { Foreground = Theme.Get("TextBrush"), VerticalAlignment = VerticalAlignment.Center, TextWrapping = TextWrapping.Wrap };
             row.Children.Add(text);
 
-            if (_settings.AutoCheckUpdates && !_updateCheckedThisSession)
+            if (!_updateCheckedThisSession)
             {
                 _updateCheckedThisSession = true;
-                var dispatcher = Dispatcher;
-                // Fire a few seconds after launch (never blocks startup) and
-                // fail completely silently - a background version check must
-                // never interrupt or alarm the user just because GitHub is
-                // unreachable, rate-limited, or the machine is offline.
-                Task.Run(async () =>
-                {
-                    try
-                    {
-                        await Task.Delay(TimeSpan.FromSeconds(5));
-                        var info = UpdateChecker.Check(Program.AppVersion);
-                        if (info != null && info.Available && string.IsNullOrEmpty(info.Error))
-                        {
-                            if (_settings.AutoInstallUpdates)
-                            {
-                                // Opt-in fully-automatic path: no click needed. Still
-                                // shown via the same banner (transparency - the app is
-                                // about to close itself), just skipped straight to the
-                                // one-click flow instead of waiting on btnDownload.
-                                dispatcher.Invoke(() =>
-                                {
-                                    text.Text = string.Format(I18n.T("update_banner_text"), info.LatestVersion);
-                                    banner.Visibility = Visibility.Visible;
-                                    btnDownload.Visibility = Visibility.Collapsed;
-                                });
-                                bool launched = await RunOneClickUpdateAsync(info);
-                                if (launched) return;
-                                // If the automatic install didn't go ahead (UAC
-                                // declined, download failed) the app is still
-                                // running - give the banner its button back so
-                                // the user can retry by hand.
-                                dispatcher.Invoke(() =>
-                                {
-                                    btnDownload.Visibility = Visibility.Visible;
-                                    btnDownload.Click += async (s, e) => await RunOneClickUpdateAsync(info);
-                                });
-                            }
-                            else
-                            {
-                                dispatcher.Invoke(() =>
-                                {
-                                    text.Text = string.Format(I18n.T("update_banner_text"), info.LatestVersion);
-                                    banner.Visibility = Visibility.Visible;
-                                    btnDownload.Click += async (s, e) =>
-                                    {
-                                        await RunOneClickUpdateAsync(info);
-                                    };
-                                });
-                            }
-                        }
-                    }
-                    catch { }
-                });
+                StartUpdateScheduler(banner, text, btnDownload);
             }
 
             return banner;
+        }
+
+        // Update scheduler (4.22.0). First check 5 s after launch (exactly as
+        // before), then a re-check every ~6 h and after resume-from-sleep, so
+        // an app left running for days still learns about new releases.
+        // AutoCheckUpdates is re-read on every cycle. Install timing:
+        //  - an update found by the FIRST (startup) check installs at once, as
+        //    in 4.21.x (the user has just launched the app);
+        //  - an update found by any LATER check installs only at a safe
+        //    moment (user idle 3+ min, no Windows shutdown/logoff, nothing
+        //    else installing), so it never interrupts active use.
+        // Every failure is logged to the normal log file and never shown.
+        private static DateTime? _lastUpdateCheckUtc;
+        private bool _sessionEnding;
+        private int _updateBusy;
+        private DateTime _autoInstallBlockedUntilUtc = DateTime.MinValue;
+
+        private void StartUpdateScheduler(Border banner, TextBlock text, Button btnDownload)
+        {
+            UpdateInfo bannerInfo = null;
+            btnDownload.Click += async (s, e) =>
+            {
+                var i = bannerInfo;
+                if (i != null) await RunOneClickUpdateAsync(i);
+            };
+
+            try
+            {
+                if (Application.Current != null)
+                    Application.Current.SessionEnding += (s, e) => _sessionEnding = true;
+                Microsoft.Win32.SystemEvents.PowerModeChanged += (s, e) =>
+                {
+                    if (e.Mode != Microsoft.Win32.PowerModes.Resume) return;
+                    if (!UpdatePolicy.ShouldCheckOnResume(_lastUpdateCheckUtc, DateTime.UtcNow)) return;
+                    Task.Run(async () =>
+                    {
+                        try
+                        {
+                            await Task.Delay(UpdatePolicy.ResumeDelay); // let the network come back
+                            Logger.Log("Update: re-check after resume from sleep");
+                            await RunUpdateCycleAsync(false, banner, text, btnDownload, i => bannerInfo = i);
+                        }
+                        catch (Exception ex) { Logger.Log("Update: resume re-check failed: " + ex.Message); }
+                    });
+                };
+            }
+            catch (Exception ex) { Logger.Log("Update: session/power hooks unavailable: " + ex.Message); }
+
+            Task.Run(async () =>
+            {
+                bool first = true;
+                while (true)
+                {
+                    try
+                    {
+                        await Task.Delay(UpdatePolicy.NextCheckDelay(_lastUpdateCheckUtc, DateTime.UtcNow));
+                        await RunUpdateCycleAsync(first, banner, text, btnDownload, i => bannerInfo = i);
+                        first = false;
+                    }
+                    catch (Exception ex)
+                    {
+                        Logger.Log("Update: scheduled cycle failed: " + ex.Message);
+                        first = false;
+                        try { await Task.Delay(TimeSpan.FromMinutes(30)); } catch { }
+                    }
+                }
+            });
+        }
+
+        private async Task RunUpdateCycleAsync(bool startup, Border banner, TextBlock text, Button btnDownload, Action<UpdateInfo> setBannerInfo)
+        {
+            if (!_settings.AutoCheckUpdates) return;
+            if (System.Threading.Volatile.Read(ref _updateBusy) != 0) return;
+
+            _lastUpdateCheckUtc = DateTime.UtcNow;
+            var dispatcher = Dispatcher;
+            var info = UpdateChecker.Check(Program.AppVersion);
+            if (info == null || !string.IsNullOrEmpty(info.Error))
+            {
+                // Offline / GitHub down: try again in ~30 min instead of waiting a full interval.
+                _lastUpdateCheckUtc = DateTime.UtcNow - (UpdatePolicy.CheckInterval - TimeSpan.FromMinutes(30));
+                return;
+            }
+            if (!info.Available) return;
+
+            setBannerInfo(info);
+            Logger.Log("Update: " + info.LatestVersion + " available (current " + Program.AppVersion + ")" + (startup ? " [startup check]" : " [re-check]"));
+            dispatcher.Invoke(() =>
+            {
+                text.Text = string.Format(I18n.T("update_banner_text"), info.LatestVersion);
+                banner.Visibility = Visibility.Visible;
+                btnDownload.Visibility = Visibility.Visible;
+            });
+
+            if (!_settings.AutoInstallUpdates) return;
+
+            if (!startup)
+            {
+                // Re-check path: wait for a safe moment (the banner and its
+                // button stay available meanwhile for a manual "update now").
+                Logger.Log("Update: waiting for a safe moment (user idle) to install " + info.LatestVersion);
+                while (true)
+                {
+                    await Task.Delay(TimeSpan.FromSeconds(30));
+                    if (!_settings.AutoInstallUpdates || !_settings.AutoCheckUpdates) return;
+                    if (_sessionEnding) return;
+                    if (UpdatePolicy.IsSafeToInstall(UpdatePolicy.GetIdleSeconds(), _sessionEnding,
+                            System.Threading.Volatile.Read(ref _updateBusy) != 0, DateTime.UtcNow, _autoInstallBlockedUntilUtc))
+                        break;
+                }
+                Logger.Log("Update: safe moment reached - installing " + info.LatestVersion);
+            }
+
+            // Fully-automatic path: no click needed. Shown via the same banner
+            // (transparency - the app is about to close itself).
+            dispatcher.Invoke(() => btnDownload.Visibility = Visibility.Collapsed);
+            bool launched = await RunOneClickUpdateAsync(info, !startup);
+            if (launched) return;
+
+            // The automatic install did not go ahead (UAC declined, download
+            // failed): do not retry by itself for 24 h, give the button back.
+            _autoInstallBlockedUntilUtc = DateTime.UtcNow + UpdatePolicy.RetryBlock;
+            dispatcher.Invoke(() => btnDownload.Visibility = Visibility.Visible);
         }
 
         // One-click self-update: downloads the installer asset from the
@@ -526,9 +597,16 @@ namespace UninstallerPro
         // opening the GitHub release page in the browser - so a network
         // hiccup, a full disk, or a non-zero installer exit code never
         // leaves the user with no way to get the update at all.
-        private async Task<bool> RunOneClickUpdateAsync(UpdateInfo info)
+        private async Task<bool> RunOneClickUpdateAsync(UpdateInfo info, bool unattended = false)
         {
             if (info == null) return false;
+            if (System.Threading.Interlocked.CompareExchange(ref _updateBusy, 1, 0) != 0) return false;
+            try { return await RunOneClickUpdateCoreAsync(info, unattended); }
+            finally { System.Threading.Interlocked.Exchange(ref _updateBusy, 0); }
+        }
+
+        private async Task<bool> RunOneClickUpdateCoreAsync(UpdateInfo info, bool unattended)
+        {
 
             if (info.Asset == null)
             {
@@ -577,6 +655,11 @@ namespace UninstallerPro
             // an error dialog plus a browser tab they didn't ask for. The
             // banner/Settings button stay available to try again later.
             if (error == UpdateChecker.ErrorCancelledByUser) return false;
+
+            // An unattended (idle-triggered) install that fails is only logged:
+            // no error dialog and no browser tab popping up for a user who was
+            // not even looking. The banner button remains for a manual retry.
+            if (unattended) { Logger.Log("Update: unattended install did not go ahead: " + error); return false; }
 
             Dispatcher.Invoke(() => Dialogs.ShowError(I18n.T("generic_error_title"), string.Format(I18n.T("update_download_failed"), error)));
 
@@ -3058,11 +3141,12 @@ namespace UninstallerPro
             panel.Children.Add(chkAutoCheckUpdates);
             panel.Children.Add(new TextBlock { Text = I18n.T("auto_check_updates_desc"), Foreground = Theme.Get("TextMutedBrush"), TextWrapping = TextWrapping.Wrap, Margin = new Thickness(0,0,0,10) });
 
-            // Opt-in (default off, see AppSettings.AutoInstallUpdates): once
-            // on, a detected update is downloaded and installed with the new
-            // /SILENT switch with no further prompting, and OptiGuard closes
-            // itself to let the install proceed - see the startup update
-            // check above (BuildUpdateBanner) for where this is acted on.
+            // On by default since 4.20 (see AppSettings.AutoInstallUpdates): a
+            // detected update is downloaded and installed with the /SILENT
+            // switch with no further prompting, and OptiGuard closes itself to
+            // let the install proceed - see StartUpdateScheduler for where
+            // this is acted on (startup check immediately; later re-checks
+            // only when the user is idle).
             var chkAutoInstallUpdates = new CheckBox { Content = I18n.T("auto_install_updates"), Style = (Style)Theme.GetStyle("CardCheckBoxStyle"), Margin = new Thickness(0,0,0,4) };
             chkAutoInstallUpdates.IsChecked = _settings.AutoInstallUpdates;
             panel.Children.Add(chkAutoInstallUpdates);
